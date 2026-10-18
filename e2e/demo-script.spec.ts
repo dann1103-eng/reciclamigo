@@ -2,24 +2,40 @@ import { expect, test } from "@playwright/test";
 
 import { resetDemo } from "./helpers";
 
-// El ciclo completo entre el comercio demo y Don José, en una sola pantalla que cambia de rol.
+// El guion del demo en vivo: una sola pantalla que cambia de rol.
+// Pasos 8 y 9 del plan (tablero de impacto y vista de alcaldía) se agregan cuando se fusione el Track B.
 test.describe.configure({ mode: "serial" });
 test.beforeAll(async ({ request }) => resetDemo(request));
 test.afterAll(async ({ request }) => resetDemo(request));
 
-test("reservar, entregar, confirmar kg y ver el resultado", async ({ page, browser }) => {
-  await test.step("Don José reserva el lote del Comedor La Ceiba", async () => {
+test("guion: publicar, reservar, entregar, confirmar kg, calificar y verificar el certificado", async ({ page, browser }) => {
+  await test.step("el comercio publica 40 kg de PET con una foto", async () => {
     await page.goto("/entrar");
-    await page.getByRole("button", { name: /^Reciclador/ }).click();
+    await page.getByRole("button", { name: /^Comercio/ }).click();
+    await expect(page).toHaveURL(/\/comercio$/);
+    await page.getByRole("link", { name: "Publicar lote" }).click();
+    await page.getByRole("button", { name: /^PET/ }).click();
+    await page.getByLabel("Kilogramos estimados").fill("40");
+    await page.locator("input[type=file]").setInputFiles("e2e/fixtures/botella-pet.png");
+    await page.getByRole("button", { name: "Publicar lote" }).click();
+    await expect(page).toHaveURL(/\/comercio$/);
+    await expect(page.getByText("Lote publicado")).toBeVisible();
+  });
+
+  await test.step("Don José ve ese lote en el mapa y lo reserva", async () => {
+    await page.getByRole("button", { name: "Reciclador" }).click();
     await expect(page).toHaveURL(/\/reciclador$/);
-    await page.getByRole("list").getByRole("button").filter({ hasText: "Comedor La Ceiba" }).first().click();
+    const lot = page.getByRole("list").getByRole("button").filter({ hasText: "Comedor La Ceiba" }).filter({ hasText: "40 kg" });
+    await expect(lot).toHaveCount(1);
+    await expect(lot).toContainText("PET");
+    await lot.click();
+    await expect(page.getByRole("img", { name: /Foto del lote/ })).toBeVisible();
     await page.getByRole("button", { name: "Reservar retiro" }).click();
     await expect(page).toHaveURL(/\/reciclador\/retiros$/);
   });
 
   await test.step("el comercio ve la reserva y marca la entrega", async () => {
-    await page.goto("/entrar");
-    await page.getByRole("button", { name: /^Comercio/ }).click();
+    await page.getByRole("button", { name: "Comercio" }).click();
     await expect(page).toHaveURL(/\/comercio$/);
     const row = page.getByRole("listitem").filter({ hasText: "Don José reservó tu lote: pasa" });
     await expect(row).toBeVisible();

@@ -28,7 +28,7 @@ export function LotFilters({
             aria-checked={radiusM === r}
             onClick={() => onRadius(r)}
             className={cn(
-              "tabular h-9 rounded-lg px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
+              "tabular h-11 rounded-lg px-4 text-sm font-semibold outline-none transition-colors duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
               radiusM === r ? "bg-card text-foreground shadow-raised" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -46,7 +46,8 @@ export function LotFilters({
               aria-pressed={on}
               onClick={() => onTogglePolymer(code)}
               className={cn(
-                "rounded-full outline-none transition-opacity duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
+                // El chip mide 28 px; el botón llega a 44 px de alto para el dedo.
+                "flex min-h-11 items-center rounded-full outline-none transition-opacity duration-200 focus-visible:ring-3 focus-visible:ring-ring/50",
                 polymers.length > 0 && !on && "opacity-45 hover:opacity-80",
                 on && "ring-2 ring-brand ring-offset-1 ring-offset-background",
               )}

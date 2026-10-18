@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Certificate } from "@/features/certificates/components/certificate";
 import { loadCertificate } from "@/features/certificates/load";
 import { certificateQrDataUrl } from "@/features/certificates/qr";
-import { isCertificateCode } from "@/features/certificates/url";
+import { isCertificateCode, normalizeCertificateCode } from "@/features/certificates/url";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ code: string }> };
@@ -17,6 +17,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Verificación pública: cualquiera con el código (o el QR) puede verlo, sin iniciar sesión. */
 export default async function CertificadoPage({ params }: Props) {
   const { code } = await params;
+  const canonical = normalizeCertificateCode(decodeURIComponent(code));
+  if (canonical && canonical !== code) redirect(`/certificados/${canonical}`); // escrito a mano en minúsculas
   // Una caída de la base lanza y la muestra error.tsx ("Reintentar"), nunca "no encontrado".
   const cert = await loadCertificate(await createClient(), code);
   if (!cert) notFound();

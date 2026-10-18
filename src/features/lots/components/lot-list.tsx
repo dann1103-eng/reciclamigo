@@ -38,7 +38,7 @@ export function LotList({
           <button
             type="button"
             onClick={onWiden}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-foreground outline-none hover:bg-brand-strong focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-11 rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground outline-none hover:bg-brand-strong focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             Ver a 5 km
           </button>

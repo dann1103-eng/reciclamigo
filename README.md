@@ -54,6 +54,8 @@ Las migraciones se ejecutan **a mano** en el SQL Editor de Supabase. Todo el pro
 
 ## Demo
 
+- Guion de la presentación, checklist del día anterior y plan B: [`docs/demo/guion-presentacion.md`](docs/demo/guion-presentacion.md).
+- `/demo?token=<DEMO_RESET_TOKEN>`: página discreta con el botón **Reiniciar demo** (guárdala como marcador; no compartas el token).
 - `/entrar`: cuentas demo **Comercio** (Comedor La Ceiba), **Reciclador** (Don José) y **Reportes de alcaldía** (solo lectura). Arriba, el selector cambia entre comercio y reciclador.
 - Reiniciar los datos antes de presentar:
 

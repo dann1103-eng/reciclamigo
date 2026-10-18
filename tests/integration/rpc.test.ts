@@ -141,8 +141,15 @@ describe("RPC contra Supabase", () => {
     expect(notOwner.error?.message).toMatch(/Solo el comercio/);
   });
 
+  test("publish_lot rechaza un tipo de plástico desconocido", async () => {
+    await expect(publish(10, "PVC")).rejects.toThrow("Tipo de plástico desconocido");
+  });
+
   test("alcaldía no opera ni lee datos privados", async () => {
     const mun = clients.alcaldia;
+    // Un lote y un retiro propios de esta prueba (no depende del orden de las demás).
+    const lotId = await publish(8);
+    const pickupId = await reserve(lotId);
     const pub = await mun.rpc("publish_lot", {
       p_polymer_code: "PET",
       p_estimated_kg: 10,
@@ -151,9 +158,13 @@ describe("RPC contra Supabase", () => {
       p_modality: "venta",
     });
     expect(pub.error?.message).toMatch(/Solo los comercios/);
-    const res = await mun.rpc("reserve_lot", { p_lot_id: createdLots[0] });
+    const res = await mun.rpc("reserve_lot", { p_lot_id: lotId });
     expect(res.error?.message).toMatch(/Solo los recicladores/);
-    const rate = await mun.rpc("rate_pickup", { p_pickup_id: createdLots[0], p_stars: 5 });
+    const delivered = await mun.rpc("mark_delivered", { p_pickup_id: pickupId });
+    expect(delivered.error?.message).toMatch(/Solo el comercio/);
+    const completed = await mun.rpc("complete_pickup", { p_pickup_id: pickupId, p_confirmed_kg: 8, p_payment_method: "efectivo" });
+    expect(completed.error?.message).toMatch(/Solo el reciclador/);
+    const rate = await mun.rpc("rate_pickup", { p_pickup_id: pickupId, p_stars: 5 });
     expect(rate.error?.message).toMatch(/Solo comercios y recicladores/);
     expect((await mun.from("lots").select("id")).data).toEqual([]);
     expect((await mun.from("profile_private").select("id")).data).toEqual([]);

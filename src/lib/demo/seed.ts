@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { PolymerCode } from "@/lib/domain/polymers";
 import type { Database } from "@/types/database";
@@ -19,7 +19,20 @@ async function check<T extends { error: { message: string } | null }>(step: stri
   return result;
 }
 
-/** Crea los usuarios que falten; a las cuentas demo les fija la contraseña DEMO_PASSWORD. */
+/** ¿La cuenta ya entra con esa contraseña? (cliente aparte: nunca mezclar sesión con el admin) */
+async function passwordWorks(email: string, password: string): Promise<boolean> {
+  const probe = createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await probe.auth.signInWithPassword({ email, password });
+  return !error;
+}
+
+/**
+ * Crea los usuarios que falten; a las cuentas demo les fija la contraseña DEMO_PASSWORD.
+ * Solo la cambia si hace falta: cambiarla cierra todas las sesiones de esa cuenta, y
+ * reiniciar el demo justo antes de presentar no puede sacar a quien ya entró.
+ */
 async function ensureUsers(admin: Admin, people: SeedPerson[], password: string) {
   const existing = new Map<string, string>();
   for (let page = 1; ; page++) {
@@ -35,7 +48,7 @@ async function ensureUsers(admin: Admin, people: SeedPerson[], password: string)
     const userPassword = person.demo ? password : randomBytes(18).toString("base64url");
     if (id) {
       ids[person.key] = id;
-      if (person.demo) {
+      if (person.demo && !(await passwordWorks(person.email, password))) {
         const { error } = await admin.auth.admin.updateUserById(id, { password });
         if (error) throw new Error(`Seed (contraseña ${person.email}): ${error.message}`);
       }

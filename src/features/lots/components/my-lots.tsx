@@ -4,10 +4,11 @@ import { FileCheck2 } from "lucide-react";
 import { PolymerChip } from "@/components/polymer/polymer-chip";
 import { formatKg, formatUSD } from "@/lib/domain/format";
 import type { LotStatus } from "@/lib/domain/types";
+import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-import { fetchDisplayName, fetchMyLots } from "../queries";
+import { fetchMyLots } from "../queries";
 import { myLotStatusLabel, type MyLot } from "../status";
 
 import { MarkDeliveredButton } from "./mark-delivered-button";
@@ -82,7 +83,8 @@ function LotRow({ lot, now, generatorName }: { lot: MyLot; now: Date; generatorN
 
 export async function MyLots({ generatorId }: { generatorId: string }) {
   const supabase = await createClient();
-  const [lots, generatorName] = await Promise.all([fetchMyLots(supabase, generatorId), fetchDisplayName(supabase, generatorId)]);
+  const [lots, profile] = await Promise.all([fetchMyLots(supabase, generatorId), getSessionProfile()]);
+  const generatorName = profile?.displayName ?? "Reciclamigo";
   const now = new Date();
   const active = lots.filter((l) => l.status !== "completado");
   const done = lots.filter((l) => l.status === "completado");

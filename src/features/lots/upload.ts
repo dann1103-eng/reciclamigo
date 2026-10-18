@@ -32,9 +32,9 @@ export function supabasePhotoStorage(supabase: SupabaseClient<Database>): PhotoS
 
 /**
  * Sube las fotos a <userId>/<uuid>.<ext> y devuelve sus URLs públicas.
- * Si una falla, lanza y el lote no se publica (nunca queda con fotos rotas). Intenta borrar
- * las ya subidas, pero OJO: el bucket aún no tiene policy de DELETE, así que en Supabase
- * ese borrado no surte efecto y quedan archivos huérfanos (sin efecto visible).
+ * Si una falla, borra las ya subidas y lanza: el lote nunca queda con fotos rotas.
+ * (El borrado necesita la migración 20261018000100_ajustes, que da SELECT + DELETE sobre
+ * la carpeta propia; sin ella el borrado no surte efecto y solo quedan archivos huérfanos.)
  */
 export async function uploadLotPhotos(storage: PhotoStorage, userId: string, files: File[]): Promise<string[]> {
   const done: string[] = [];
@@ -48,4 +48,12 @@ export async function uploadLotPhotos(storage: PhotoStorage, userId: string, fil
     done.push(path);
   }
   return done.map((path) => storage.publicUrl(path));
+}
+
+const BUCKET_MARKER = "/lot-photos/";
+
+/** Borra fotos ya subidas (p. ej. si la publicación falló después de subirlas). */
+export async function removeLotPhotos(storage: PhotoStorage, urls: string[]): Promise<void> {
+  const paths = urls.map((url) => url.slice(url.indexOf(BUCKET_MARKER) + BUCKET_MARKER.length)).filter(Boolean);
+  if (paths.length) await storage.remove(paths);
 }

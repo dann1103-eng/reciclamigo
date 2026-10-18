@@ -75,7 +75,8 @@ export function CollectorMap({
   // En pantallas angostas la ficha queda bajo el mapa: llévala a la vista al elegir un lote.
   useEffect(() => {
     if (selectedId && window.matchMedia("(max-width: 1023px)").matches) {
-      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panelRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     }
   }, [selectedId]);
 

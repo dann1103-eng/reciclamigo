@@ -3,7 +3,7 @@ import jsQR from "jsqr";
 import { describe, expect, test } from "vitest";
 
 import { certificateQrDataUrl } from "./qr";
-import { certificateUrl, isCertificateCode } from "./url";
+import { certificateUrl, isCertificateCode, normalizeCertificateCode } from "./url";
 
 describe("certificateUrl", () => {
   test("arma la URL pública de verificación sin doble barra", () => {
@@ -20,6 +20,14 @@ describe("isCertificateCode", () => {
     expect(isCertificateCode("rca-2026-0a1b2c")).toBe(false);
     expect(isCertificateCode("RCA-2026-0A1B2")).toBe(false);
     expect(isCertificateCode("RCA-2026-0A1B2C/../x")).toBe(false);
+  });
+});
+
+describe("normalizeCertificateCode", () => {
+  test("acepta el código escrito a mano en minúsculas o con espacios", () => {
+    expect(normalizeCertificateCode("rca-2026-0a1b2c")).toBe("RCA-2026-0A1B2C");
+    expect(normalizeCertificateCode(" RCA-2026-0A1B2C ")).toBe("RCA-2026-0A1B2C");
+    expect(normalizeCertificateCode("rca-2026-zzzzzz")).toBeNull();
   });
 });
 

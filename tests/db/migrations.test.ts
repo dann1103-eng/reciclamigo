@@ -243,3 +243,37 @@ describe("fotos en storage", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+describe("ajustes (migración 0600)", () => {
+  const photo = (uid: string) => `https://abcdefgh.supabase.co/storage/v1/object/public/lot-photos/${uid}/foto.jpg`;
+  const publishWithPhotos = (uid: string, urls: string[]) =>
+    as("authenticated", uid, "select public.publish_lot('PET', 10, $1, $2, 'venta', $3)", [tomorrow(9), tomorrow(11), urls]);
+
+  test("solo acepta fotos de la carpeta del propio comercio en el bucket", async () => {
+    await expect(publishWithPhotos(GEN, [photo(GEN)])).resolves.toHaveLength(1);
+    await expect(publishWithPhotos(GEN, [photo(GEN2)])).rejects.toThrow("Una de las fotos no es válida");
+    await expect(publishWithPhotos(GEN, ["https://example.com/feo.jpg"])).rejects.toThrow("Una de las fotos no es válida");
+  });
+
+  test("kg que se redondean a cero dan un error en español", async () => {
+    await expect(publish(GEN, "PET", 0.004)).rejects.toThrow(/kg estimados/);
+  });
+
+  test("confirmar dos veces el mismo retiro explica que ya está completado", async () => {
+    const lotId = await publish(GEN, "PET", 20);
+    const [r] = await as<{ reserve_lot: string }>("authenticated", COL, "select public.reserve_lot($1)", [lotId]);
+    await as("authenticated", GEN, "select public.mark_delivered($1)", [r.reserve_lot]);
+    await as("authenticated", COL, "select public.complete_pickup($1, 20, 'efectivo')", [r.reserve_lot]);
+    await expect(as("authenticated", COL, "select public.complete_pickup($1, 20, 'efectivo')", [r.reserve_lot])).rejects.toThrow(
+      "Este retiro ya está completado",
+    );
+  });
+
+  test("un comercio borra sus propias fotos, no las de otro", async () => {
+    await db.exec(`insert into storage.objects (bucket_id, name) values ('lot-photos', '${GEN}/borrar.jpg'), ('lot-photos', '${GEN2}/ajena.jpg')`);
+    const mine = await as("authenticated", GEN, "delete from storage.objects where name = $1 returning name", [`${GEN}/borrar.jpg`]);
+    expect(mine).toHaveLength(1);
+    const other = await as("authenticated", GEN, "delete from storage.objects where name = $1 returning name", [`${GEN2}/ajena.jpg`]);
+    expect(other).toHaveLength(0);
+  });
+});

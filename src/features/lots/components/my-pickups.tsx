@@ -1,9 +1,10 @@
 import Link from "next/link";
 
+import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { groupMyPickups, type MyPickup } from "../pickups";
-import { fetchDisplayName, fetchMyPickups } from "../queries";
+import { fetchMyPickups } from "../queries";
 
 import { PickupRow } from "./pickup-row";
 
@@ -33,10 +34,8 @@ function Group({
 
 export async function MyPickups({ collectorId, highlightId }: { collectorId: string; highlightId?: string }) {
   const supabase = await createClient();
-  const [pickups, collectorName] = await Promise.all([
-    fetchMyPickups(supabase, collectorId),
-    fetchDisplayName(supabase, collectorId),
-  ]);
+  const [pickups, profile] = await Promise.all([fetchMyPickups(supabase, collectorId), getSessionProfile()]);
+  const collectorName = profile?.displayName ?? "Reciclamigo";
   const { toCollect, toConfirm, completed } = groupMyPickups(pickups);
 
   if (!toCollect.length && !toConfirm.length && !completed.length) {
