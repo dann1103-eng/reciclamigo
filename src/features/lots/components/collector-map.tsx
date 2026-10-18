@@ -20,7 +20,15 @@ const LotsMap = dynamic(() => import("./lots-map").then((m) => m.LotsMap), {
   loading: () => <div className="size-full animate-pulse bg-paper-2" aria-label="Cargando mapa" />,
 });
 
-export function CollectorMap({ center, initialLots }: { center: LatLng; initialLots: NearbyLot[] }) {
+export function CollectorMap({
+  center,
+  initialLots,
+  collectorName,
+}: {
+  center: LatLng;
+  initialLots: NearbyLot[];
+  collectorName: string;
+}) {
   const [radiusM, setRadiusM] = useState<RadiusM>(DEFAULT_RADIUS);
   const [polymers, setPolymers] = useState<PolymerCode[]>([]);
   const [lots, setLots] = useState(initialLots);
@@ -81,6 +89,7 @@ export function CollectorMap({ center, initialLots }: { center: LatLng; initialL
           {selected ? (
             <LotDetailPanel
               lot={selected}
+              collectorName={collectorName}
               onBack={() => setSelectedId(null)}
               onTaken={() => {
                 setSelectedId(null);

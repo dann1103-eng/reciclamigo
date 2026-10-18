@@ -14,7 +14,10 @@ import { formatPickupWindow } from "../format-window";
 import type { MyPickup } from "../pickups";
 
 import { CompletePickupForm } from "./complete-pickup-form";
+import { collectorMessage } from "../whatsapp";
+
 import { RatePickup } from "./rate-pickup";
+import { WhatsAppButton } from "./whatsapp-button";
 
 function statusText(pickup: MyPickup): string {
   if (pickup.status === "reservado") {
@@ -25,7 +28,15 @@ function statusText(pickup: MyPickup): string {
   return pickup.totalAmount ? `${formatUSD(pickup.totalAmount)} registrados` : "Sin cobro";
 }
 
-export function PickupRow({ pickup, highlighted = false }: { pickup: MyPickup; highlighted?: boolean }) {
+export function PickupRow({
+  pickup,
+  collectorName,
+  highlighted = false,
+}: {
+  pickup: MyPickup;
+  collectorName: string;
+  highlighted?: boolean;
+}) {
   const [confirming, setConfirming] = useState(false);
   const kg = pickup.confirmedKg ?? pickup.estimatedKg;
 
@@ -52,6 +63,17 @@ export function PickupRow({ pickup, highlighted = false }: { pickup: MyPickup; h
           <p className="text-sm">{statusText(pickup)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {pickup.status !== "completado" ? (
+            <WhatsAppButton
+              phone={pickup.generatorWhatsapp}
+              text={collectorMessage({
+                collectorName,
+                kg: pickup.estimatedKg,
+                polymerCode: pickup.polymerCode,
+                windowLabel: formatPickupWindow(new Date(pickup.pickupFrom), new Date(pickup.pickupTo)),
+              })}
+            />
+          ) : null}
           {pickup.status === "entregado" && !confirming ? (
             <button
               type="button"

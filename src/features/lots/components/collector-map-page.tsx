@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-import { fetchCollectorPoint, fetchNearbyLots } from "../queries";
+import { fetchCollectorPoint, fetchDisplayName, fetchNearbyLots } from "../queries";
 import { DEFAULT_RADIUS } from "../types";
 
 import { CollectorMap } from "./collector-map";
@@ -19,6 +19,9 @@ export async function CollectorMapPage({ collectorId }: { collectorId: string })
       </section>
     );
   }
-  const initialLots = await fetchNearbyLots(supabase, { ...center, radiusM: DEFAULT_RADIUS, polymers: null });
-  return <CollectorMap center={center} initialLots={initialLots} />;
+  const [initialLots, collectorName] = await Promise.all([
+    fetchNearbyLots(supabase, { ...center, radiusM: DEFAULT_RADIUS, polymers: null }),
+    fetchDisplayName(supabase, collectorId),
+  ]);
+  return <CollectorMap center={center} initialLots={initialLots} collectorName={collectorName} />;
 }

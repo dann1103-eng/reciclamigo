@@ -18,7 +18,11 @@ import { createClient } from "@/lib/supabase/client";
 
 import { reserveLot } from "../actions";
 import { formatPickupWindow } from "../format-window";
+import { fetchWhatsapp } from "../queries";
 import type { NearbyLot } from "../types";
+import { collectorMessage } from "../whatsapp";
+
+import { WhatsAppButton } from "./whatsapp-button";
 
 const MODALITY_LABEL: Record<Modality, string> = { venta: "Venta", trueque: "Trueque", donacion: "Donación" };
 
@@ -29,16 +33,19 @@ function ratingText(row: ProfileImpactRow | null): string {
 
 export function LotDetailPanel({
   lot,
+  collectorName,
   onBack,
   onTaken,
 }: {
   lot: NearbyLot;
+  collectorName: string;
   onBack: () => void;
   onTaken: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [impact, setImpact] = useState<ProfileImpactRow | null>(null);
+  const [whatsapp, setWhatsapp] = useState<string | null>(null);
   const code = lot.polymer_code as PolymerCode;
   const kg = Number(lot.estimated_kg);
   const modality = lot.modality as Modality;
@@ -46,9 +53,13 @@ export function LotDetailPanel({
 
   useEffect(() => {
     let alive = true;
-    getProfileImpact(createClient(), lot.generator_id)
+    const supabase = createClient();
+    getProfileImpact(supabase, lot.generator_id)
       .then((row) => alive && setImpact(row))
       .catch(() => alive && setImpact(null));
+    fetchWhatsapp(supabase, lot.generator_id)
+      .then((phone) => alive && setWhatsapp(phone))
+      .catch(() => alive && setWhatsapp(null));
     return () => {
       alive = false;
     };
@@ -134,10 +145,22 @@ export function LotDetailPanel({
 
       {impact ? <BadgeList stats={profileStatsFromRow(impact)} /> : null}
 
-      <button type="button" onClick={reserve} disabled={pending} className={buttonVariants({ size: "xl", className: "w-full" })}>
-        {pending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : null}
-        {pending ? "Reservando…" : "Reservar retiro"}
-      </button>
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={reserve} disabled={pending} className={buttonVariants({ size: "xl", className: "w-full" })}>
+          {pending ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : null}
+          {pending ? "Reservando…" : "Reservar retiro"}
+        </button>
+        <WhatsAppButton
+          phone={whatsapp}
+          className="w-full"
+          text={collectorMessage({
+            collectorName,
+            kg,
+            polymerCode: code,
+            windowLabel: formatPickupWindow(new Date(lot.pickup_from), new Date(lot.pickup_to)),
+          })}
+        />
+      </div>
     </article>
   );
 }

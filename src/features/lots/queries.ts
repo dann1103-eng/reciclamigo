@@ -26,6 +26,18 @@ export async function fetchNearbyLots(
   return data ?? [];
 }
 
+/** Nombre visible de un perfil (para firmar los mensajes de WhatsApp). */
+export async function fetchDisplayName(supabase: Client, profileId: string): Promise<string> {
+  const { data } = await supabase.from("profiles").select("display_name").eq("id", profileId).maybeSingle();
+  return data?.display_name ?? "Reciclamigo";
+}
+
+/** WhatsApp de un comercio o reciclador (profile_private; la alcaldía no lo ve). */
+export async function fetchWhatsapp(supabase: Client, profileId: string): Promise<string | null> {
+  const { data } = await supabase.from("profile_private").select("whatsapp").eq("id", profileId).maybeSingle();
+  return data?.whatsapp ?? null;
+}
+
 /** Ubicación registrada del reciclador (profile_private, solo comercios y recicladores la leen). */
 export async function fetchCollectorPoint(supabase: Client, collectorId: string): Promise<LatLng | null> {
   const { data } = await supabase.from("profile_private").select("location").eq("id", collectorId).maybeSingle();

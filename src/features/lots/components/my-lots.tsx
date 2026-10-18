@@ -7,11 +7,14 @@ import type { LotStatus } from "@/lib/domain/types";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
-import { fetchMyLots } from "../queries";
+import { fetchDisplayName, fetchMyLots } from "../queries";
 import { myLotStatusLabel, type MyLot } from "../status";
 
 import { MarkDeliveredButton } from "./mark-delivered-button";
+import { generatorMessage } from "../whatsapp";
+
 import { RatePickup } from "./rate-pickup";
+import { WhatsAppButton } from "./whatsapp-button";
 
 const STATUS_STYLE: Record<LotStatus, string> = {
   publicado: "bg-paper-2 text-muted-foreground",
@@ -28,7 +31,7 @@ const STATUS_NAME: Record<LotStatus, string> = {
   cancelado: "Cancelado",
 };
 
-function LotRow({ lot, now }: { lot: MyLot; now: Date }) {
+function LotRow({ lot, now, generatorName }: { lot: MyLot; now: Date; generatorName: string }) {
   const p = lot.pickup;
   return (
     <li className="flex flex-col gap-3 rounded-xl border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -54,7 +57,15 @@ function LotRow({ lot, now }: { lot: MyLot; now: Date }) {
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {lot.status === "reservado" && p ? <MarkDeliveredButton pickupId={p.id} collectorName={p.collectorName} /> : null}
+        {lot.status === "reservado" && p ? (
+          <>
+            <WhatsAppButton
+              phone={p.collectorWhatsapp}
+              text={generatorMessage({ generatorName, kg: lot.estimatedKg, polymerCode: lot.polymerCode })}
+            />
+            <MarkDeliveredButton pickupId={p.id} collectorName={p.collectorName} />
+          </>
+        ) : null}
         {lot.status === "completado" && p?.certificateCode ? (
           <Link
             href={`/certificados/${p.certificateCode}`}
@@ -71,7 +82,7 @@ function LotRow({ lot, now }: { lot: MyLot; now: Date }) {
 
 export async function MyLots({ generatorId }: { generatorId: string }) {
   const supabase = await createClient();
-  const lots = await fetchMyLots(supabase, generatorId);
+  const [lots, generatorName] = await Promise.all([fetchMyLots(supabase, generatorId), fetchDisplayName(supabase, generatorId)]);
   const now = new Date();
   const active = lots.filter((l) => l.status !== "completado");
   const done = lots.filter((l) => l.status === "completado");
@@ -95,7 +106,7 @@ export async function MyLots({ generatorId }: { generatorId: string }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Activos</h3>
           <ul className="flex flex-col gap-3">
             {active.map((lot) => (
-              <LotRow key={lot.id} lot={lot} now={now} />
+              <LotRow key={lot.id} lot={lot} now={now} generatorName={generatorName} />
             ))}
           </ul>
         </div>
@@ -105,7 +116,7 @@ export async function MyLots({ generatorId }: { generatorId: string }) {
           <h3 className="text-sm font-semibold text-muted-foreground">Completados en los últimos 30 días</h3>
           <ul className="flex flex-col gap-3">
             {done.map((lot) => (
-              <LotRow key={lot.id} lot={lot} now={now} />
+              <LotRow key={lot.id} lot={lot} now={now} generatorName={generatorName} />
             ))}
           </ul>
         </div>

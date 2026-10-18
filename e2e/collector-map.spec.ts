@@ -68,3 +68,14 @@ test("reservar lleva a Mis retiros y un segundo intento sobre el mismo lote fall
   await expect(b.getByRole("button", { name: "Reservar retiro" })).toBeHidden(); // vuelve a la lista
   expect(kg).toBeTruthy();
 });
+
+test("la ficha permite escribirle al comercio por WhatsApp con el mensaje listo", async ({ page }) => {
+  await enterAs(page, "Reciclador");
+  await lotItems(page).first().click();
+  const link = page.getByRole("link", { name: "WhatsApp" });
+  await expect(link).toHaveAttribute("target", "_blank");
+  const href = (await link.getAttribute("href")) ?? "";
+  expect(href).toMatch(/^https:\/\/wa\.me\/5037\d{7}\?text=/);
+  const text = decodeURIComponent(href.split("?text=")[1]);
+  expect(text).toMatch(/^Hola, soy Don José de Reciclamigo\. Voy por tu lote de .+ kg de (PET|HDPE|LDPE|PP|PS) \(.+\)\.$/);
+});
