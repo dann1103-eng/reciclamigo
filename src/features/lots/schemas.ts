@@ -32,6 +32,16 @@ export const publishLotSchema = z
 
 export type PublishLotInput = z.infer<typeof publishLotSchema>;
 
+export const PAYMENT_METHODS = ["efectivo", "transferencia", "chivo_wallet"] as const;
+
+export const completePickupSchema = z.object({
+  pickupId: z.uuid({ error: "Retiro inválido" }),
+  confirmedKg: kg,
+  paymentMethod: z.enum(PAYMENT_METHODS, { error: "Elige cómo se pagó" }),
+});
+
+export type CompletePickupInput = z.infer<typeof completePickupSchema>;
+
 /** Convierte lo que escribe la persona ("35,5" o "35.5") en número; null si no lo es. */
 export function parseKg(raw: string): number | null {
   const normalized = raw.trim().replace(",", ".");

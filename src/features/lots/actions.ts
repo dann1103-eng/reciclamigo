@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 
-import { firstIssue, publishLotSchema, type PublishLotInput } from "./schemas";
+import { completePickupSchema, firstIssue, publishLotSchema, type CompletePickupInput, type PublishLotInput } from "./schemas";
 import type { ActionResult } from "./types";
 
 /** Publica un lote. La ubicación y el precio los fija la base (RPC publish_lot). */
@@ -51,4 +51,20 @@ export async function markDelivered(pickupId: string): Promise<ActionResult> {
   revalidatePath("/comercio");
   revalidatePath("/reciclador/retiros");
   return { ok: true, data: undefined };
+}
+
+/** El reciclador confirma los kg reales y cómo se pagó (solo se registra). Devuelve el código del certificado. */
+export async function completePickup(input: CompletePickupInput): Promise<ActionResult<{ certificateCode: string }>> {
+  const parsed = completePickupSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("complete_pickup", {
+    p_pickup_id: parsed.data.pickupId,
+    p_confirmed_kg: parsed.data.confirmedKg,
+    p_payment_method: parsed.data.paymentMethod,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/reciclador/retiros");
+  revalidatePath("/comercio");
+  return { ok: true, data: { certificateCode: data } };
 }

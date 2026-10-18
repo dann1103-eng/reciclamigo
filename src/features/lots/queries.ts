@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { PolymerCode } from "@/lib/domain/polymers";
-import type { LotStatus } from "@/lib/domain/types";
+import type { LotStatus, Modality } from "@/lib/domain/types";
 import { parsePoint, type LatLng } from "@/lib/geo";
 import type { Database } from "@/types/database";
 
+import type { MyPickup } from "./pickups";
 import { sortMyLots, type MyLot } from "./status";
 import type { NearbyLot, RadiusM } from "./types";
 
@@ -94,4 +95,66 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
     (l) => l.status !== "completado" || now.getTime() - new Date(l.pickup?.completedAt ?? l.createdAt).getTime() <= THIRTY_DAYS_MS,
   );
   return sortMyLots(recent);
+}
+
+const MY_PICKUP_FIELDS =
+  "id, lot_id, confirmed_kg, total_amount, certificate_code, completed_at, ratings(rater_id), lot:lots!pickups_lot_id_fkey(polymer_code, estimated_kg, status, pickup_from, pickup_to, price_per_kg, modality, generator_id, generator:profiles!lots_generator_id_fkey(display_name, profile_private(whatsapp)))";
+
+type RawMyPickup = {
+  id: string;
+  lot_id: string;
+  confirmed_kg: number | null;
+  total_amount: number | null;
+  certificate_code: string | null;
+  completed_at: string | null;
+  ratings: { rater_id: string }[] | null;
+  lot: {
+    polymer_code: string;
+    estimated_kg: number;
+    status: string;
+    pickup_from: string;
+    pickup_to: string;
+    price_per_kg: number;
+    modality: string;
+    generator_id: string;
+    generator: { display_name: string; profile_private: { whatsapp: string | null } | null } | null;
+  } | null;
+};
+
+/** Retiros del reciclador con su lote y el comercio (para "Mis retiros"). */
+export async function fetchMyPickups(supabase: Client, collectorId: string): Promise<MyPickup[]> {
+  const { data, error } = await supabase
+    .from("pickups")
+    .select(MY_PICKUP_FIELDS)
+    .eq("collector_id", collectorId)
+    .order("reserved_at", { ascending: false })
+    .limit(100);
+  if (error) throw new Error(error.message);
+
+  return (data as unknown as RawMyPickup[]).flatMap((row): MyPickup[] => {
+    const lot = one(row.lot);
+    if (!lot) return [];
+    const generator = one(lot.generator);
+    return [
+      {
+        id: row.id,
+        lotId: row.lot_id,
+        polymerCode: lot.polymer_code as PolymerCode,
+        estimatedKg: Number(lot.estimated_kg),
+        pricePerKg: Number(lot.price_per_kg),
+        modality: lot.modality as Modality,
+        status: lot.status as LotStatus,
+        pickupFrom: lot.pickup_from,
+        pickupTo: lot.pickup_to,
+        generatorId: lot.generator_id,
+        generatorName: generator?.display_name ?? "Comercio",
+        generatorWhatsapp: one(generator?.profile_private)?.whatsapp ?? null,
+        confirmedKg: row.confirmed_kg === null ? null : Number(row.confirmed_kg),
+        totalAmount: row.total_amount === null ? null : Number(row.total_amount),
+        certificateCode: row.certificate_code,
+        completedAt: row.completed_at,
+        myRatingGiven: (row.ratings ?? []).some((r) => r.rater_id === collectorId),
+      },
+    ];
+  });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { parseKg, publishLotSchema } from "./schemas";
+import { completePickupSchema, parseKg, publishLotSchema } from "./schemas";
 
 const valid = {
   polymerCode: "PET",
@@ -57,5 +57,26 @@ describe("parseKg", () => {
     expect(parseKg("")).toBeNull();
     expect(parseKg("abc")).toBeNull();
     expect(parseKg("1.2.3")).toBeNull();
+  });
+});
+
+describe("completePickupSchema", () => {
+  const uuid = "8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11";
+  const ok = (v: object) => completePickupSchema.safeParse(v).success;
+
+  test("acepta kg positivos y un método de pago conocido", () => {
+    expect(ok({ pickupId: uuid, confirmedKg: 35.5, paymentMethod: "chivo_wallet" })).toBe(true);
+    expect(ok({ pickupId: uuid, confirmedKg: 12, paymentMethod: "efectivo" })).toBe(true);
+  });
+
+  test("rechaza kg en cero, negativos o diminutos", () => {
+    expect(ok({ pickupId: uuid, confirmedKg: 0, paymentMethod: "efectivo" })).toBe(false);
+    expect(ok({ pickupId: uuid, confirmedKg: -3, paymentMethod: "efectivo" })).toBe(false);
+    expect(ok({ pickupId: uuid, confirmedKg: 0.004, paymentMethod: "efectivo" })).toBe(false);
+  });
+
+  test("rechaza métodos de pago desconocidos y retiros sin id válido", () => {
+    expect(ok({ pickupId: uuid, confirmedKg: 35.5, paymentMethod: "bitcoin" })).toBe(false);
+    expect(ok({ pickupId: "abc", confirmedKg: 35.5, paymentMethod: "efectivo" })).toBe(false);
   });
 });
