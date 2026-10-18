@@ -121,7 +121,7 @@ Todo depende de la red (Supabase cloud, Vercel, teselas del mapa). Respaldo: (1)
 
 Presentación: **la próxima semana (24–31 oct)**. El colaborador **programa en paralelo**. Supabase **aún no existe**.
 
-**Dos proyectos Supabase** *(mi decisión; el plan free permite 2)*: `reciclamigo-dev` (lo comparten ambos devs y los preview deploys de Vercel) y `reciclamigo-demo` (solo producción de Vercel, el que se usa frente al jurado). Así un experimento o un `reset_demo` en desarrollo nunca rompe el demo. El colaborador debe ser miembro de la organización de Supabase.
+**Un solo proyecto Supabase** (decisión del usuario, 2026-10-17; ya creado): lo usan ambos devs, los preview deploys y producción. Los datos de demo se borran cuando llegue la producción real. Riesgo: un experimento o un "Reiniciar demo" afecta lo que ve el jurado; se mitiga con el congelamiento y reiniciando el demo antes de presentar. El colaborador debe ser miembro de la organización de Supabase.
 
 **Reglas del repo** *(mi decisión)*
 - `main` siempre desplegable; cada uno trabaja en ramas `feat/<área>` con PR y preview deploy de Vercel.
@@ -134,15 +134,15 @@ Presentación: **la próxima semana (24–31 oct)**. El colaborador **programa e
   - **Track A (Daniel + Claude):** ciclo central + mapa (publicar, mapa/ficha, reservar, entregado, completar, calificar) → WhatsApp → certificado + verificación + QR.
   - **Track B (colaborador):** tablero de impacto del comercio → insignias + perfil público → vista alcaldía.
   - El orden de prioridad acordado se respeta dentro de cada track; si falta tiempo se corta desde el final (alcaldía, insignias, certificado).
-- **Fase 2 — Integración (día 6):** e2e del guion completo, revisión visual proyector/móvil, aplicar migraciones y seeds a `reciclamigo-demo`, deploy de producción.
+- **Fase 2 — Integración (día 6):** e2e del guion completo, revisión visual proyector/móvil, reiniciar el demo, deploy de producción.
 - **Fase 3 — Congelamiento (día anterior a la presentación):** no más cambios en `main`; ensayo con "Reiniciar demo"; grabar video de respaldo; abrir la app para que Supabase no esté pausado.
 - *(si sobra tiempo)* Registro abierto.
 
 Tras aprobar este diseño: invocar `superpowers:writing-plans` para el plan detallado tarea por tarea (separado por fase y track, para que el colaborador tenga el suyo), y ejecutar la Fase 0.
 
 ## Lo que hace el usuario (no Claude)
-- Crear la organización en Supabase y los dos proyectos (`reciclamigo-dev`, `reciclamigo-demo`, región East US); invitar al colaborador a la organización.
-- Copiar URL, publishable key y secret key de `dev` a `.env.local`; las de `demo` a las variables de **Production** en Vercel y las de `dev` a **Preview**.
+- ~~Crear el proyecto Supabase~~ (hecho); invitar al colaborador a la organización.
+- Copiar URL, publishable key y secret key a `.env.local` y a las variables de Vercel (Production y Preview).
 - `npx supabase login` (token personal) para que la CLI aplique migraciones.
 - Crear el repo en GitHub, pasar el link e invitar al colaborador (lo antes posible: la base se sube el día 1–2).
 - Importar el repo en Vercel.

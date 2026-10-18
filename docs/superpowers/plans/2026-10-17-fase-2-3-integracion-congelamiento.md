@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Probar el guion completo del demo de punta a punta, dejar producción (`reciclamigo-demo`) lista y congelada, y ensayar con plan B.
+**Goal:** Probar el guion completo del demo de punta a punta, dejar producción lista y congelada, y ensayar con plan B.
 
-**Architecture:** Un test Playwright recorre el guion en local y contra la URL de Vercel. Antes de correr se llama a `/demo/reset` con el token. Producción usa el proyecto Supabase `reciclamigo-demo`.
+**Architecture:** Un test Playwright recorre el guion en local y contra la URL de Vercel. Antes de correr se llama a `/demo/reset` con el token. Local, Preview y Production comparten un solo proyecto Supabase (decisión del usuario).
 
 **Tech Stack:** Playwright 1.64, Supabase CLI, Vercel.
 
@@ -49,7 +49,7 @@
 
 ### Task 3: Producción, congelamiento y ensayo
 
-- [ ] **Step 1: Migraciones y seeds a demo** — el usuario enlaza `reciclamigo-demo`; `npx supabase db push` y `npm run seed` con las variables de demo; volver a enlazar dev. Expected: `db push` sin errores.
+- [ ] **Step 1: Migraciones al día** — `npx supabase db push` (todas las migraciones de `main` aplicadas) y `POST /demo/reset?token=…`. Expected: `db push` sin cambios pendientes y reset con 200.
 - [ ] **Step 2: Deploy** — merge a `main` → Vercel Production. Run: `E2E_BASE_URL=<url-prod> DEMO_RESET_TOKEN=… npm run e2e` — Expected: PASS (el test reinicia antes y después).
 - [ ] **Step 3: Congelar** — anunciar el congelamiento al colaborador. Desde aquí solo se aceptan arreglos de bloqueos del demo.
 - [ ] **Step 4: Ensayo (usuario y equipo)**
