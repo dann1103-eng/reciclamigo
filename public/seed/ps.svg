@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-label="Plato y vasos de duroport (PS)">
+<rect width="480" height="360" fill="#F0EAD3"/>
+<ellipse cx="230" cy="326" rx="140" ry="12" fill="#E2D7B2"/>
+<ellipse cx="200" cy="272" rx="122" ry="36" fill="#FCFAF1" stroke="#C9A227" stroke-width="5"/>
+<ellipse cx="200" cy="266" rx="80" ry="20" fill="#F2EBD2"/>
+<path d="M300 112h76l-12 150c-1 8-7 14-15 14h-22c-8 0-14-6-15-14Z" fill="#FCFAF1" stroke="#C9A227" stroke-width="5" stroke-linejoin="round"/>
+<path d="M296 112h84" stroke="#9C7C1A" stroke-width="8" stroke-linecap="round"/>
+<path d="M300 92h76l-1 14h-74Z" fill="#FCFAF1" stroke="#C9A227" stroke-width="5" stroke-linejoin="round"/>
+<path d="M318 140l6 110" stroke="#EDE3C2" stroke-width="8" stroke-linecap="round"/>
+<g transform="translate(428 316)"><circle r="22" fill="#C9A227"/><text y="8" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#1E2A22">6</text></g>
+</svg>

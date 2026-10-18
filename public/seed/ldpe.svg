@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-label="Bolsa de LDPE">
+<rect width="480" height="360" fill="#E8E1EA"/>
+<ellipse cx="240" cy="326" rx="110" ry="12" fill="#D6CADB"/>
+<path d="M150 70c0-8 6-14 14-14h20c8 0 14 6 14 14v40c0 6 4 10 10 10h64c6 0 10-4 10-10V70c0-8 6-14 14-14h20c8 0 14 6 14 14v54l18 168c2 14-9 26-23 26H155c-14 0-25-12-23-26l18-168Z" fill="#B7A0DF"/>
+<path d="M170 76h12v52h-12zM298 76h12v52h-12z" fill="#E8E1EA"/>
+<path d="M186 170c20 30 18 70-6 120M246 160c10 40 6 90-12 130M300 176c-14 30-12 70 10 110" stroke="#8E63CE" stroke-width="6" stroke-linecap="round" fill="none" opacity=".7"/>
+<path d="M160 140c-4 30-8 60-10 90" stroke="#DCD0F1" stroke-width="9" stroke-linecap="round"/>
+<g transform="translate(428 316)"><circle r="22" fill="#8E63CE"/><text y="8" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#F7F6EF">4</text></g>
+</svg>
