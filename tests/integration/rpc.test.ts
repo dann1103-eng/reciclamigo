@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
 import { POST as resetDemo } from "@/app/demo/reset/route";
 import { DEMO_ACCOUNTS, type DemoRole } from "@/lib/demo/accounts";
+import { parsePoint } from "@/lib/geo";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database";
 
@@ -58,28 +59,14 @@ beforeAll(async () => {
     .eq("id", me.user!.id)
     .single();
   if (pointError) throw new Error(pointError.message);
-  collectorPoint = parsePoint(point.location);
+  const parsed = parsePoint(point.location);
+  if (!parsed) throw new Error("Don José no tiene ubicación");
+  collectorPoint = parsed;
 });
 
 afterAll(async () => {
   if (createdLots.length) await admin.from("lots").delete().in("id", createdLots);
 });
-
-// PostgREST devuelve geography como GeoJSON o como EWKB en hex, según la versión.
-function parsePoint(value: unknown): { lat: number; lng: number } {
-  if (value && typeof value === "object" && "coordinates" in value) {
-    const [lng, lat] = (value as { coordinates: [number, number] }).coordinates;
-    return { lat, lng };
-  }
-  const hex = String(value);
-  const buf = Buffer.from(hex, "hex");
-  const little = buf[0] === 1;
-  const hasSrid = ((little ? buf.readUInt32LE(1) : buf.readUInt32BE(1)) & 0x20000000) !== 0;
-  const offset = 5 + (hasSrid ? 4 : 0);
-  const lng = little ? buf.readDoubleLE(offset) : buf.readDoubleBE(offset);
-  const lat = little ? buf.readDoubleLE(offset + 8) : buf.readDoubleBE(offset + 8);
-  return { lat, lng };
-}
 
 describe("RPC contra Supabase", () => {
   let completedCode: string;

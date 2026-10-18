@@ -174,7 +174,7 @@ function mulberry32(seed: number) {
 const round = (n: number, decimals: number) => Math.round(n * 10 ** decimals) / 10 ** decimals;
 
 export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): SeedData {
-  const rand = mulberry32(20261017);
+  const rand = mulberry32(20261020);
   const between = (min: number, max: number) => min + rand() * (max - min);
   const int = (min: number, max: number) => Math.floor(between(min, max + 1));
   const pick = <T>(items: readonly T[]) => items[Math.floor(rand() * items.length)];
