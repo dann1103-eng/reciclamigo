@@ -95,7 +95,7 @@ Todo depende de la red (Supabase cloud, Vercel, teselas del mapa). Respaldo: (1)
 
 **Stack:** Next.js (última estable, App Router) + TypeScript + Tailwind CSS + shadcn/ui; `@supabase/ssr` para auth con cookies; Leaflet + react-leaflet (import dinámico sin SSR) con teselas OSM/CARTO; `leaflet.heat` para el mapa de calor; Recharts para gráficos; `qrcode` para el QR; lucide-react para íconos.
 
-**Supabase:** Postgres + **PostGIS** + Auth + Storage (bucket público `lot-photos`). Migraciones versionadas en `supabase/migrations/` y aplicadas con Supabase CLI (`npx supabase db push`) para que el colaborador quede sincronizado. Ambos desarrollan contra el mismo proyecto cloud (sin Docker en Windows).
+**Supabase:** Postgres + **PostGIS** + Auth + Storage (bucket público `lot-photos`). Migraciones versionadas en `supabase/migrations/`. Migraciones **manuales** (decisión del usuario, 2026-10-17: su CLI de Supabase está enlazada a otra cuenta): cada cambio es un archivo nuevo `supabase/migrations/<YYYYMMDDHHMMSS>_<nombre>.sql` que termina registrándose en la tabla `public.app_migrations`; se ejecuta a mano en el SQL Editor de Supabase, en orden, y `npm run db:status` lista las pendientes. Nunca editar una migración ya aplicada. Los tipos `src/types/database.ts` se mantienen a mano junto con cada migración (o se regeneran con `npx supabase gen types typescript --project-id <ref>` cuando alguien tenga la CLI enlazada). Ambos desarrollan contra el mismo proyecto cloud (sin Docker en Windows).
 
 **Modelo de datos**
 - `polymers` (code PK: PET/HDPE/LDPE/PP/PS, resin_number 1/2/4/5/6, name, color, price_per_kg). Precios: PET 0.20, HDPE 0.18 (de la propuesta); LDPE, PP, PS con valores provisionales editables.
@@ -115,7 +115,7 @@ Todo depende de la red (Supabase cloud, Vercel, teselas del mapa). Respaldo: (1)
 
 **Seeds:** script TS `scripts/seed.ts` (Admin API con service role) crea usuarios demo + ~12 comercios y ~8 recicladores ficticios con coordenadas realistas en Santa Ana y San Salvador, ~20 lotes publicados, ~60 retiros completados en los 6 meses previos con calificaciones. Las fotos de lotes sembrados son ilustraciones por polímero en `/public/seed/`. El mismo contenido lo usa `reset_demo`.
 
-**Variables de entorno** (`.env.example` en el repo; valores reales los pone el usuario en `.env.local` y en Vercel): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (solo servidor; las llaves legacy anon/service_role se retiran a fines de 2026), `DEMO_PASSWORD`, `DEMO_RESET_TOKEN`, `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_SITE_URL` (dominio de producción; el QR del certificado apunta ahí).
+**Variables de entorno** (`.env.example` en el repo; valores reales los pone el usuario en `.env.local` y en Vercel): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (solo servidor). Decisión del usuario: se usan las llaves legacy anon/service_role; Supabase las retira a fines de 2026, y para migrar basta con poner la publishable y la secret en estas mismas variables, `DEMO_PASSWORD`, `DEMO_RESET_TOKEN`, `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_SITE_URL` (dominio de producción; el QR del certificado apunta ahí).
 
 ## Calendario y trabajo en paralelo
 
@@ -125,7 +125,7 @@ Presentación: **la próxima semana (24–31 oct)**. El colaborador **programa e
 
 **Reglas del repo** *(mi decisión)*
 - `main` siempre desplegable; cada uno trabaja en ramas `feat/<área>` con PR y preview deploy de Vercel.
-- Migraciones: un archivo nuevo por cambio con timestamp (`npx supabase migration new <nombre>`), nunca editar una ya fusionada; se aplican a `dev` al fusionar en `main`, y a `demo` solo en el congelamiento.
+- Migraciones: un archivo nuevo por cambio con timestamp, nunca editar una ya aplicada; se ejecutan a mano en el SQL Editor al fusionar en `main` y se verifican con `npm run db:status`. Quien fusiona la migración avisa al otro.
 - Cada track toca sus propias carpetas de rutas/componentes; lo compartido (tipos de BD, cliente Supabase, UI base, utilidades de dominio) vive en la base y se cambia con aviso.
 
 **Fases**
@@ -142,8 +142,8 @@ Tras aprobar este diseño: invocar `superpowers:writing-plans` para el plan deta
 
 ## Lo que hace el usuario (no Claude)
 - ~~Crear el proyecto Supabase~~ (hecho); invitar al colaborador a la organización.
-- Copiar URL, publishable key y secret key a `.env.local` y a las variables de Vercel (Production y Preview).
-- `npx supabase login` (token personal) para que la CLI aplique migraciones.
+- Copiar URL, anon key y service_role key a `.env.local` y a las variables de Vercel (Production y Preview).
+- Ejecutar las migraciones en el SQL Editor de Supabase, en orden (Claude las deja en `supabase/migrations/` y avisa cuáles faltan).
 - Crear el repo en GitHub, pasar el link e invitar al colaborador (lo antes posible: la base se sube el día 1–2).
 - Importar el repo en Vercel.
 - Confirmar la fecha exacta de la presentación en cuanto se sepa (define el día de congelamiento).

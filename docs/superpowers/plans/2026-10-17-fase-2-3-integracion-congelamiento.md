@@ -6,7 +6,7 @@
 
 **Architecture:** Un test Playwright recorre el guion en local y contra la URL de Vercel. Antes de correr se llama a `/demo/reset` con el token. Local, Preview y Production comparten un solo proyecto Supabase (decisión del usuario).
 
-**Tech Stack:** Playwright 1.64, Supabase CLI, Vercel.
+**Tech Stack:** Playwright 1.64, Supabase (SQL Editor), Vercel.
 
 **Spec:** `docs/superpowers/specs/2026-10-17-reciclamigo-mvp-design.md` · **Depende de:** Fase 0, Track A y Track B fusionados en `main`. El registro abierto (prioridad 7, "si sobra tiempo") queda fuera de estos planes; si sobra tiempo se planifica aparte.
 
@@ -49,7 +49,7 @@
 
 ### Task 3: Producción, congelamiento y ensayo
 
-- [ ] **Step 1: Migraciones al día** — `npx supabase db push` (todas las migraciones de `main` aplicadas) y `POST /demo/reset?token=…`. Expected: `db push` sin cambios pendientes y reset con 200.
+- [ ] **Step 1: Migraciones al día** — `npm run db:status` (todas las migraciones de `main` aplicadas a mano en el SQL Editor) y `POST /demo/reset?token=…`. Expected: 0 pendientes y reset con 200.
 - [ ] **Step 2: Deploy** — merge a `main` → Vercel Production. Run: `E2E_BASE_URL=<url-prod> DEMO_RESET_TOKEN=… npm run e2e` — Expected: PASS (el test reinicia antes y después).
 - [ ] **Step 3: Congelar** — anunciar el congelamiento al colaborador. Desde aquí solo se aceptan arreglos de bloqueos del demo.
 - [ ] **Step 4: Ensayo (usuario y equipo)**

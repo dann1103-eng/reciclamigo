@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "db:types": "supabase gen types typescript --linked --schema public > src/types/database.ts"
+    "db:status": "tsx --env-file=.env.local scripts/db-status.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -40,7 +40,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
-    "supabase": "^2.121.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
