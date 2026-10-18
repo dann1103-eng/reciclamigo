@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 // Una sola familia: grotesca robusta, de rótulo de camión y báscula.
@@ -27,7 +28,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es-SV" className={`${archivo.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <Toaster position="top-center" toastOptions={{ className: "font-sans" }} />
+      </body>
     </html>
   );
 }
