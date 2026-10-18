@@ -41,3 +41,14 @@ export async function reserveLot(lotId: string): Promise<ActionResult<{ pickupId
   revalidatePath("/comercio");
   return { ok: true, data: { pickupId: data } };
 }
+
+/** El comercio confirma que entregó el material al reciclador. */
+export async function markDelivered(pickupId: string): Promise<ActionResult> {
+  if (typeof pickupId !== "string" || !pickupId) return { ok: false, error: "Retiro inválido" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_delivered", { p_pickup_id: pickupId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/comercio");
+  revalidatePath("/reciclador/retiros");
+  return { ok: true, data: undefined };
+}
