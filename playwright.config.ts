@@ -12,6 +12,8 @@ try {
 export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
+  // En dev la primera visita a cada ruta compila: 5 s no siempre alcanzan.
+  expect: { timeout: 15_000 },
   // Todas las pruebas comparten el mismo proyecto Supabase y algunas reinician el demo:
   // en serie, para que no se pisen.
   workers: 1,
