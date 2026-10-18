@@ -1,7 +1,8 @@
+import { getSessionProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { groupMyPickups } from "../pickups";
-import { fetchCollectorPoint, fetchDisplayName, fetchMyPickups, fetchNearbyLots } from "../queries";
+import { fetchCollectorPoint, fetchMyPickups, fetchNearbyLots } from "../queries";
 import { DEFAULT_RADIUS } from "../types";
 
 import { CollectorMap } from "./collector-map";
@@ -20,11 +21,12 @@ export async function CollectorMapPage({ collectorId }: { collectorId: string })
       </section>
     );
   }
-  const [initialLots, collectorName, pickups] = await Promise.all([
+  const [initialLots, profile, pickups] = await Promise.all([
     fetchNearbyLots(supabase, { ...center, radiusM: DEFAULT_RADIUS, polymers: null }),
-    fetchDisplayName(supabase, collectorId),
+    getSessionProfile(),
     fetchMyPickups(supabase, collectorId),
   ]);
+  const collectorName = profile?.displayName ?? "Reciclamigo";
   const { toCollect, toConfirm } = groupMyPickups(pickups);
   return (
     <CollectorMap

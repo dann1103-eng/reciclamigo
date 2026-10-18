@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   completePickupSchema,
   firstIssue,
+  idSchema,
   publishLotSchema,
   ratePickupSchema,
   type CompletePickupInput,
@@ -40,7 +41,7 @@ export async function publishLot(input: PublishLotInput): Promise<ActionResult<{
 
 /** El reciclador reserva un lote. Si otro llegó antes, la base responde "El lote ya no está disponible". */
 export async function reserveLot(lotId: string): Promise<ActionResult<{ pickupId: string }>> {
-  if (typeof lotId !== "string" || !lotId) return { ok: false, error: "Lote inválido" };
+  if (!idSchema.safeParse(lotId).success) return { ok: false, error: "Lote inválido" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("reserve_lot", { p_lot_id: lotId });
   if (error) return { ok: false, error: error.message };
@@ -52,7 +53,7 @@ export async function reserveLot(lotId: string): Promise<ActionResult<{ pickupId
 
 /** El comercio confirma que entregó el material al reciclador. */
 export async function markDelivered(pickupId: string): Promise<ActionResult> {
-  if (typeof pickupId !== "string" || !pickupId) return { ok: false, error: "Retiro inválido" };
+  if (!idSchema.safeParse(pickupId).success) return { ok: false, error: "Retiro inválido" };
   const supabase = await createClient();
   const { error } = await supabase.rpc("mark_delivered", { p_pickup_id: pickupId });
   if (error) return { ok: false, error: error.message };

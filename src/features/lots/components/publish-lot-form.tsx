@@ -76,12 +76,15 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
     if (kg === null) return setError("Escribe los kg aproximados, por ejemplo 40 o 35,5");
     const photoProblem = validatePhotoFiles(files);
     if (photoProblem) return setError(photoProblem);
+    const pickupFrom = svDateTimeToIso(date, from);
+    const pickupTo = svDateTimeToIso(date, to);
+    if (!pickupFrom || !pickupTo) return setError("Elige el día y las horas de retiro");
 
     const input = {
       polymerCode: polymer,
       estimatedKg: kg,
-      pickupFrom: svDateTimeToIso(date, from),
-      pickupTo: svDateTimeToIso(date, to),
+      pickupFrom,
+      pickupTo,
       modality,
       photoUrls: [] as string[],
       notes: notes.trim() || undefined,
@@ -155,7 +158,7 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
                 <button
                   type="button"
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  className="absolute top-1 right-1 grid size-7 place-items-center rounded-full bg-card/95 text-foreground shadow-raised outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="absolute top-1 right-1 grid size-7 place-items-center rounded-full bg-card/95 text-foreground shadow-raised outline-none before:absolute before:-inset-2 before:content-[''] focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <X className="size-4" aria-hidden="true" />
                   <span className="sr-only">Quitar foto {i + 1}</span>

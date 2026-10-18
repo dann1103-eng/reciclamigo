@@ -43,7 +43,9 @@ function pinIcon(code: PolymerCode, selected: boolean, offsetPx: number): L.DivI
 function FlyTo({ target, zoom }: { target: LatLng; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo([target.lat, target.lng], zoom, { duration: 0.6 });
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) map.setView([target.lat, target.lng], zoom);
+    else map.flyTo([target.lat, target.lng], zoom, { duration: 0.6 });
   }, [map, target.lat, target.lng, zoom]);
   return null;
 }

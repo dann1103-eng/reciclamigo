@@ -8,6 +8,11 @@ describe("hora de El Salvador (UTC-6)", () => {
     expect(svDateTimeToIso("2026-10-21", "23:30")).toBe("2026-10-22T05:30:00.000Z");
   });
 
+  test("devuelve null si falta la fecha o la hora (campo borrado)", () => {
+    expect(svDateTimeToIso("", "09:00")).toBeNull();
+    expect(svDateTimeToIso("2026-10-21", "")).toBeNull();
+  });
+
   test("da la fecha local de hoy o de mañana para el selector", () => {
     const lateNightUtc = new Date("2026-10-21T03:00:00Z"); // 20 oct, 21:00 en El Salvador
     expect(svDateInput(lateNightUtc)).toBe("2026-10-20");

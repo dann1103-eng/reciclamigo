@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { completePickupSchema, parseKg, publishLotSchema, ratePickupSchema } from "./schemas";
+import { completePickupSchema, idSchema, parseKg, publishLotSchema, ratePickupSchema } from "./schemas";
 
 const valid = {
   polymerCode: "PET",
@@ -102,5 +102,13 @@ describe("ratePickupSchema", () => {
     expect(ok({ stars: 6 })).toBe(false);
     expect(ok({ stars: 2.5 })).toBe(false);
     expect(ok({ stars: 5, comment: "x".repeat(281) })).toBe(false);
+  });
+});
+
+describe("idSchema", () => {
+  test("solo acepta uuid (las acciones no mandan basura a la base)", () => {
+    expect(idSchema.safeParse("8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11").success).toBe(true);
+    expect(idSchema.safeParse("abc").success).toBe(false);
+    expect(idSchema.safeParse("").success).toBe(false);
   });
 });

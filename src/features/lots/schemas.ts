@@ -32,6 +32,8 @@ export const publishLotSchema = z
 
 export type PublishLotInput = z.infer<typeof publishLotSchema>;
 
+export const idSchema = z.uuid({ error: "Identificador inválido" });
+
 export const PAYMENT_METHODS = ["efectivo", "transferencia", "chivo_wallet"] as const;
 
 export const completePickupSchema = z.object({

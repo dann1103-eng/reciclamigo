@@ -32,7 +32,7 @@ export function RoleSwitcher({ current }: { current: DemoRole }) {
               disabled={pending}
               onClick={() => !active && switchTo(role)}
               className={cn(
-                "h-9 rounded-lg px-3 text-sm font-semibold transition-colors duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-4",
+                "h-11 rounded-lg px-3 text-sm font-semibold transition-colors duration-200 outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:px-4",
                 active ? "bg-card text-foreground shadow-raised" : "text-muted-foreground hover:text-foreground",
               )}
             >
