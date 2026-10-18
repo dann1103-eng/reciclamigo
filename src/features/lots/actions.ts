@@ -29,3 +29,15 @@ export async function publishLot(input: PublishLotInput): Promise<ActionResult<{
   revalidatePath("/reciclador");
   return { ok: true, data: { lotId: data } };
 }
+
+/** El reciclador reserva un lote. Si otro llegó antes, la base responde "El lote ya no está disponible". */
+export async function reserveLot(lotId: string): Promise<ActionResult<{ pickupId: string }>> {
+  if (typeof lotId !== "string" || !lotId) return { ok: false, error: "Lote inválido" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reserve_lot", { p_lot_id: lotId });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/reciclador");
+  revalidatePath("/reciclador/retiros");
+  revalidatePath("/comercio");
+  return { ok: true, data: { pickupId: data } };
+}
