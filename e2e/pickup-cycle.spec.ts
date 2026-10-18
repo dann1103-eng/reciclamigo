@@ -30,7 +30,8 @@ test("reservar, entregar, confirmar kg y ver el resultado", async ({ page, brows
   await test.step("Don José confirma 35,5 kg en efectivo", async () => {
     await page.getByRole("button", { name: "Reciclador" }).click();
     await expect(page).toHaveURL(/\/reciclador$/);
-    await page.goto("/reciclador/retiros");
+    await page.getByRole("link", { name: /^Mis retiros/ }).click();
+    await expect(page).toHaveURL(/\/reciclador\/retiros$/);
     const row = page.getByRole("listitem").filter({ hasText: "Comedor La Ceiba" }).filter({ hasText: "Confirma los kg reales" });
     await row.getByRole("button", { name: "Confirmar retiro" }).click();
     await row.getByLabel("Kg reales pesados").fill("35,5");
@@ -59,7 +60,8 @@ test("reservar, entregar, confirmar kg y ver el resultado", async ({ page, brows
   await test.step("el certificado se verifica sin sesión y cabe en una hoja A4", async () => {
     await page.getByRole("button", { name: "Reciclador" }).click();
     await expect(page).toHaveURL(/\/reciclador$/); // espera a que termine el cambio de cuenta
-    await page.goto("/reciclador/retiros");
+    await page.getByRole("link", { name: /^Mis retiros/ }).click();
+    await expect(page).toHaveURL(/\/reciclador\/retiros$/);
     const href = await page
       .getByRole("listitem")
       .filter({ hasText: "Calificaste a Comedor La Ceiba con 5 ★" })

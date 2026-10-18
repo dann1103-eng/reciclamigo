@@ -52,11 +52,24 @@ export const ratePickupSchema = z.object({
 
 export type RatePickupInput = z.infer<typeof ratePickupSchema>;
 
-/** Convierte lo que escribe la persona ("35,5" o "35.5") en número; null si no lo es. */
+/**
+ * Convierte lo que escribe la persona en número; null si no lo es.
+ * "35.5" y "35,5" son decimales. Una coma seguida de grupos de 3 dígitos ("1,250") es de
+ * miles, como se escribe en El Salvador: así "1,250" nunca se vuelve 1.25 kg en silencio.
+ * Con punto y coma a la vez, el último que aparece es el decimal ("1,250.5" o "1.250,5").
+ */
 export function parseKg(raw: string): number | null {
-  const normalized = raw.trim().replace(",", ".");
-  if (!/^\d+(\.\d+)?$/.test(normalized)) return null;
-  return Number(normalized);
+  let s = raw.trim().replace(/\s/g, "");
+  const comma = s.lastIndexOf(",");
+  const dot = s.lastIndexOf(".");
+  if (comma >= 0 && dot >= 0) {
+    const [thousands, decimal] = comma > dot ? [".", ","] : [",", "."];
+    s = s.split(thousands).join("").replace(decimal, ".");
+  } else if (comma >= 0) {
+    s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  }
+  if (!/^\d+(\.\d+)?$/.test(s)) return null;
+  return Number(s);
 }
 
 /** Primer mensaje de error de zod, para mostrarlo tal cual. */

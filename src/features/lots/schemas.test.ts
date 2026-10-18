@@ -53,6 +53,13 @@ describe("parseKg", () => {
     expect(parseKg(" 40 ")).toBe(40);
   });
 
+  test("una coma seguida de grupos de 3 dígitos es separador de miles (convención de El Salvador)", () => {
+    expect(parseKg("1,250")).toBe(1250);
+    expect(parseKg("1,250.5")).toBe(1250.5);
+    expect(parseKg("35,50")).toBe(35.5);
+    expect(parseKg("1.250,5")).toBe(1250.5);
+  });
+
   test("devuelve null si no es un número", () => {
     expect(parseKg("")).toBeNull();
     expect(parseKg("abc")).toBeNull();

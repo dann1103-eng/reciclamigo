@@ -18,7 +18,8 @@ export function WhatsAppButton({ phone, text, className }: { phone: string | nul
       )}
     >
       <MessageCircle className="size-4 text-brand" aria-hidden="true" />
-      WhatsApp
+      Contactar por WhatsApp
+      <span className="sr-only"> (se abre en una pestaña nueva)</span>
     </a>
   );
 }

@@ -32,7 +32,9 @@ export function supabasePhotoStorage(supabase: SupabaseClient<Database>): PhotoS
 
 /**
  * Sube las fotos a <userId>/<uuid>.<ext> y devuelve sus URLs públicas.
- * Si una falla, borra las que ya subió: nunca se publica un lote con fotos rotas.
+ * Si una falla, lanza y el lote no se publica (nunca queda con fotos rotas). Intenta borrar
+ * las ya subidas, pero OJO: el bucket aún no tiene policy de DELETE, así que en Supabase
+ * ese borrado no surte efecto y quedan archivos huérfanos (sin efecto visible).
  */
 export async function uploadLotPhotos(storage: PhotoStorage, userId: string, files: File[]): Promise<string[]> {
   const done: string[] = [];

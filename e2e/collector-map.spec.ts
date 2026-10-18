@@ -72,7 +72,7 @@ test("reservar lleva a Mis retiros y un segundo intento sobre el mismo lote fall
 test("la ficha permite escribirle al comercio por WhatsApp con el mensaje listo", async ({ page }) => {
   await enterAs(page, "Reciclador");
   await lotItems(page).first().click();
-  const link = page.getByRole("link", { name: "WhatsApp" });
+  const link = page.getByRole("link", { name: /^Contactar por WhatsApp/ });
   await expect(link).toHaveAttribute("target", "_blank");
   const href = (await link.getAttribute("href")) ?? "";
   expect(href).toMatch(/^https:\/\/wa\.me\/5037\d{7}\?text=/);

@@ -1,12 +1,15 @@
 "use client";
 
+import { ClipboardList } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PolymerCode } from "@/lib/domain/polymers";
 import type { LatLng } from "@/lib/geo";
 import { createClient } from "@/lib/supabase/client";
 
+import { createLatestGuard } from "../latest";
 import { fetchNearbyLots } from "../queries";
 import { DEFAULT_RADIUS, type NearbyLot, type RadiusM } from "../types";
 
@@ -24,10 +27,12 @@ export function CollectorMap({
   center,
   initialLots,
   collectorName,
+  pendingPickups,
 }: {
   center: LatLng;
   initialLots: NearbyLot[];
   collectorName: string;
+  pendingPickups: number;
 }) {
   const [radiusM, setRadiusM] = useState<RadiusM>(DEFAULT_RADIUS);
   const [polymers, setPolymers] = useState<PolymerCode[]>([]);
@@ -38,17 +43,24 @@ export function CollectorMap({
   const first = useRef(true);
   const panelRef = useRef<HTMLElement>(null);
 
+  const guard = useRef(createLatestGuard());
+
   const load = useCallback(async () => {
+    const request = guard.current.next(); // si el usuario cambia de filtro rápido, la respuesta vieja se descarta
     setLoading(true);
     setError(null);
     try {
       const next = await fetchNearbyLots(createClient(), { ...center, radiusM, polymers });
+      if (!guard.current.isLatest(request)) return;
       setLots(next);
       setSelectedId((id) => (id && next.some((l) => l.id === id) ? id : null));
     } catch {
+      if (!guard.current.isLatest(request)) return;
+      setLots([]); // nunca dejar lotes de otro radio bajo la etiqueta nueva
+      setSelectedId(null);
       setError("No se pudieron cargar los lotes. Revisa la conexión.");
     } finally {
-      setLoading(false);
+      if (guard.current.isLatest(request)) setLoading(false);
     }
   }, [center, radiusM, polymers]);
 
@@ -73,11 +85,25 @@ export function CollectorMap({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Lotes cerca de ti</h1>
-        <p className="tabular text-muted-foreground" aria-live="polite">
-          {loading ? "Buscando…" : `${lots.length} ${lots.length === 1 ? "lote publicado" : "lotes publicados"} a ${radiusM / 1000} km`}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Lotes cerca de ti</h1>
+          <p className="tabular text-muted-foreground" aria-live="polite">
+            {loading ? "Buscando…" : `${lots.length} ${lots.length === 1 ? "lote publicado" : "lotes publicados"} a ${radiusM / 1000} km`}
+          </p>
+        </div>
+        <Link
+          href="/reciclador/retiros"
+          className="inline-flex h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold outline-none transition-colors duration-200 hover:bg-paper-2 focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <ClipboardList className="size-4 text-brand" aria-hidden="true" />
+          Mis retiros
+          {pendingPickups > 0 ? (
+            <span className="tabular rounded-full bg-accent-warm-soft px-2 py-0.5 text-xs font-bold text-accent-warm-ink">
+              {pendingPickups} por atender
+            </span>
+          ) : null}
+        </Link>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">

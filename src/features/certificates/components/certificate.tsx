@@ -3,13 +3,11 @@ import { ResinMark } from "@/components/polymer/polymer-chip";
 import { formatKg } from "@/lib/domain/format";
 import { co2eAvoidedKg } from "@/lib/domain/impact";
 import type { PolymerCode } from "@/lib/domain/polymers";
-import type { Database } from "@/types/database";
 
+import type { CertificateData } from "../load";
 import { certificateUrl } from "../url";
 
 import { PrintButton } from "./print-button";
-
-export type CertificateData = Database["public"]["Functions"]["get_certificate"]["Returns"][number];
 
 const longDate = new Intl.DateTimeFormat("es-SV", {
   timeZone: "America/El_Salvador",
