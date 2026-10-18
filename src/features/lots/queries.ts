@@ -33,7 +33,7 @@ export async function fetchCollectorPoint(supabase: Client, collectorId: string)
 }
 
 const MY_LOT_FIELDS =
-  "id, polymer_code, estimated_kg, status, pickup_from, pickup_to, created_at, pickups(id, collector_id, confirmed_kg, total_amount, certificate_code, completed_at, collector:profiles!pickups_collector_id_fkey(display_name, profile_private(whatsapp)), ratings(rater_id))";
+  "id, polymer_code, estimated_kg, status, pickup_from, pickup_to, created_at, pickups(id, collector_id, confirmed_kg, total_amount, certificate_code, completed_at, collector:profiles!pickups_collector_id_fkey(display_name, profile_private(whatsapp)), ratings(rater_id, stars))";
 
 type RawPickup = {
   id: string;
@@ -43,7 +43,7 @@ type RawPickup = {
   certificate_code: string | null;
   completed_at: string | null;
   collector: { display_name: string; profile_private: { whatsapp: string | null } | null } | null;
-  ratings: { rater_id: string }[];
+  ratings: { rater_id: string; stars: number }[];
 };
 
 // PostgREST devuelve la relación 1 a 1 como objeto, pero según la versión puede venir como arreglo.
@@ -85,6 +85,7 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
               certificateCode: p.certificate_code,
               completedAt: p.completed_at,
               myRatingGiven: (p.ratings ?? []).some((r) => r.rater_id === generatorId),
+              myRating: (p.ratings ?? []).find((r) => r.rater_id === generatorId)?.stars ?? null,
             }
           : null,
       };
@@ -98,7 +99,7 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
 }
 
 const MY_PICKUP_FIELDS =
-  "id, lot_id, confirmed_kg, total_amount, certificate_code, completed_at, ratings(rater_id), lot:lots!pickups_lot_id_fkey(polymer_code, estimated_kg, status, pickup_from, pickup_to, price_per_kg, modality, generator_id, generator:profiles!lots_generator_id_fkey(display_name, profile_private(whatsapp)))";
+  "id, lot_id, confirmed_kg, total_amount, certificate_code, completed_at, ratings(rater_id, stars), lot:lots!pickups_lot_id_fkey(polymer_code, estimated_kg, status, pickup_from, pickup_to, price_per_kg, modality, generator_id, generator:profiles!lots_generator_id_fkey(display_name, profile_private(whatsapp)))";
 
 type RawMyPickup = {
   id: string;
@@ -107,7 +108,7 @@ type RawMyPickup = {
   total_amount: number | null;
   certificate_code: string | null;
   completed_at: string | null;
-  ratings: { rater_id: string }[] | null;
+  ratings: { rater_id: string; stars: number }[] | null;
   lot: {
     polymer_code: string;
     estimated_kg: number;
@@ -154,6 +155,7 @@ export async function fetchMyPickups(supabase: Client, collectorId: string): Pro
         certificateCode: row.certificate_code,
         completedAt: row.completed_at,
         myRatingGiven: (row.ratings ?? []).some((r) => r.rater_id === collectorId),
+        myRating: (row.ratings ?? []).find((r) => r.rater_id === collectorId)?.stars ?? null,
       },
     ];
   });

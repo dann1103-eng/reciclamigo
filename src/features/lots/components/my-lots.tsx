@@ -11,6 +11,7 @@ import { fetchMyLots } from "../queries";
 import { myLotStatusLabel, type MyLot } from "../status";
 
 import { MarkDeliveredButton } from "./mark-delivered-button";
+import { RatePickup } from "./rate-pickup";
 
 const STATUS_STYLE: Record<LotStatus, string> = {
   publicado: "bg-paper-2 text-muted-foreground",
@@ -48,6 +49,9 @@ function LotRow({ lot, now }: { lot: MyLot; now: Date }) {
         ) : (
           <p className="text-sm">{myLotStatusLabel(lot, now)}</p>
         )}
+        {lot.status === "completado" && p ? (
+          <RatePickup pickupId={p.id} otherName={p.collectorName} myRating={p.myRating} />
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {lot.status === "reservado" && p ? <MarkDeliveredButton pickupId={p.id} collectorName={p.collectorName} /> : null}

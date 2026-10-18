@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { completePickupSchema, parseKg, publishLotSchema } from "./schemas";
+import { completePickupSchema, parseKg, publishLotSchema, ratePickupSchema } from "./schemas";
 
 const valid = {
   polymerCode: "PET",
@@ -78,5 +78,22 @@ describe("completePickupSchema", () => {
   test("rechaza métodos de pago desconocidos y retiros sin id válido", () => {
     expect(ok({ pickupId: uuid, confirmedKg: 35.5, paymentMethod: "bitcoin" })).toBe(false);
     expect(ok({ pickupId: "abc", confirmedKg: 35.5, paymentMethod: "efectivo" })).toBe(false);
+  });
+});
+
+describe("ratePickupSchema", () => {
+  const pickupId = "8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11";
+  const ok = (v: object) => ratePickupSchema.safeParse({ pickupId, ...v }).success;
+
+  test("acepta de 1 a 5 estrellas enteras, con o sin comentario", () => {
+    expect(ok({ stars: 5 })).toBe(true);
+    expect(ok({ stars: 1, comment: "Llegó tarde" })).toBe(true);
+  });
+
+  test("rechaza estrellas fuera de rango o con decimales y comentarios largos", () => {
+    expect(ok({ stars: 0 })).toBe(false);
+    expect(ok({ stars: 6 })).toBe(false);
+    expect(ok({ stars: 2.5 })).toBe(false);
+    expect(ok({ stars: 5, comment: "x".repeat(281) })).toBe(false);
   });
 });

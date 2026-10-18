@@ -19,6 +19,7 @@ export type MyPickup = {
   certificateCode: string | null;
   completedAt: string | null;
   myRatingGiven: boolean;
+  myRating: number | null;
 };
 
 const THIRTY_DAYS_MS = 30 * 86_400_000;

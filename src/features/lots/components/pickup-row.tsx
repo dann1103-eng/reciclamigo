@@ -14,6 +14,7 @@ import { formatPickupWindow } from "../format-window";
 import type { MyPickup } from "../pickups";
 
 import { CompletePickupForm } from "./complete-pickup-form";
+import { RatePickup } from "./rate-pickup";
 
 function statusText(pickup: MyPickup): string {
   if (pickup.status === "reservado") {
@@ -71,6 +72,10 @@ export function PickupRow({ pickup, highlighted = false }: { pickup: MyPickup; h
           ) : null}
         </div>
       </div>
+
+      {pickup.status === "completado" ? (
+        <RatePickup pickupId={pickup.id} otherName={pickup.generatorName} myRating={pickup.myRating} />
+      ) : null}
 
       {confirming && pickup.status === "entregado" ? (
         <CompletePickupForm pickup={pickup} onCancel={() => setConfirming(false)} />

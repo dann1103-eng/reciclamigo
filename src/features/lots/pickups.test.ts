@@ -20,6 +20,7 @@ const pickup = (id: string, status: MyPickup["status"], completedAt: string | nu
   certificateCode: null,
   completedAt,
   myRatingGiven: false,
+  myRating: null,
 });
 
 describe("groupMyPickups", () => {

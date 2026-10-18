@@ -42,6 +42,16 @@ export const completePickupSchema = z.object({
 
 export type CompletePickupInput = z.infer<typeof completePickupSchema>;
 
+export const MAX_COMMENT = 280;
+
+export const ratePickupSchema = z.object({
+  pickupId: z.uuid({ error: "Retiro inválido" }),
+  stars: z.number().int("Elige de 1 a 5 estrellas").min(1, "Elige de 1 a 5 estrellas").max(5, "Elige de 1 a 5 estrellas"),
+  comment: z.string().trim().max(MAX_COMMENT, `El comentario puede tener hasta ${MAX_COMMENT} caracteres`).optional(),
+});
+
+export type RatePickupInput = z.infer<typeof ratePickupSchema>;
+
 /** Convierte lo que escribe la persona ("35,5" o "35.5") en número; null si no lo es. */
 export function parseKg(raw: string): number | null {
   const normalized = raw.trim().replace(",", ".");

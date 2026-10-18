@@ -22,6 +22,7 @@ export type MyLot = {
     certificateCode: string | null;
     completedAt: string | null;
     myRatingGiven: boolean;
+    myRating: number | null;
   };
 };
 

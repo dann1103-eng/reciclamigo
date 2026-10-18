@@ -26,6 +26,7 @@ function lot(over: Partial<MyLot> & { collectorName?: string; confirmedKg?: numb
             certificateCode: null,
             completedAt: null,
             myRatingGiven: false,
+            myRating: null,
           }
         : null,
     ...rest,

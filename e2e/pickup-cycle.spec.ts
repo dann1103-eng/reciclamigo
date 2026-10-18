@@ -40,4 +40,19 @@ test("reservar, entregar, confirmar kg y ver el resultado", async ({ page }) => 
     await expect(page.getByRole("status").filter({ hasText: "Retiro completado: 35.5 kg" })).toBeVisible();
     await expect(page.getByRole("listitem").filter({ hasText: "Retiro completado" }).getByRole("link", { name: "Ver certificado" })).toBeVisible();
   });
+
+  await test.step("ambos se califican una sola vez", async () => {
+    const mine = page.getByRole("listitem").filter({ hasText: "Retiro completado" });
+    await mine.getByRole("radio", { name: "5 estrellas" }).click();
+    await mine.getByLabel("Comentario (opcional)").fill("Material bien separado");
+    await mine.getByRole("button", { name: "Enviar calificación" }).click();
+    await expect(mine.getByText("Calificaste a Comedor La Ceiba con 5 ★")).toBeVisible();
+
+    await page.getByRole("button", { name: "Comercio" }).click();
+    await expect(page).toHaveURL(/\/comercio$/);
+    const row = page.getByRole("listitem").filter({ hasText: "Recogido por Don José" }).filter({ hasText: "¿Cómo te fue" }).first();
+    await row.getByRole("radio", { name: "4 estrellas" }).click();
+    await row.getByRole("button", { name: "Enviar calificación" }).click();
+    await expect(page.getByText("Calificaste a Don José con 4 ★").first()).toBeVisible();
+  });
 });

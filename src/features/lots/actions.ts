@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 
-import { completePickupSchema, firstIssue, publishLotSchema, type CompletePickupInput, type PublishLotInput } from "./schemas";
+import {
+  completePickupSchema,
+  firstIssue,
+  publishLotSchema,
+  ratePickupSchema,
+  type CompletePickupInput,
+  type PublishLotInput,
+  type RatePickupInput,
+} from "./schemas";
 import type { ActionResult } from "./types";
 
 /** Publica un lote. La ubicación y el precio los fija la base (RPC publish_lot). */
@@ -67,4 +75,20 @@ export async function completePickup(input: CompletePickupInput): Promise<Action
   revalidatePath("/reciclador/retiros");
   revalidatePath("/comercio");
   return { ok: true, data: { certificateCode: data } };
+}
+
+/** Cada parte califica a la otra una vez, cuando el retiro está completado. */
+export async function ratePickup(input: RatePickupInput): Promise<ActionResult> {
+  const parsed = ratePickupSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rate_pickup", {
+    p_pickup_id: parsed.data.pickupId,
+    p_stars: parsed.data.stars,
+    p_comment: parsed.data.comment || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/comercio");
+  revalidatePath("/reciclador/retiros");
+  return { ok: true, data: undefined };
 }
