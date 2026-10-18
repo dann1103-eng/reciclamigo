@@ -3,7 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import type { Database } from "@/types/database";
 
-/** Refresca la sesión de Supabase en cada request (lo llama src/proxy.ts). */
+// Áreas que exigen sesión. El rol exacto lo valida cada layout con requireRole().
+const PROTECTED_PREFIXES = ["/comercio", "/reciclador", "/alcaldia", "/perfil"];
+
+const isProtected = (pathname: string) =>
+  PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+/** Refresca la sesión de Supabase en cada request y saca a /entrar a quien no tiene sesión. */
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
 
@@ -26,7 +32,16 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   );
 
   // No pongas lógica entre crear el cliente y getClaims(): provoca cierres de sesión aleatorios.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  if (!data?.claims && isProtected(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/entrar";
+    url.search = "";
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+  }
 
   // Devuelve siempre la respuesta que armó setAll, o se pierden las cookies refrescadas.
   return response;
