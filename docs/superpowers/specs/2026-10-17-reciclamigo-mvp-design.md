@@ -115,7 +115,7 @@ Todo depende de la red (Supabase cloud, Vercel, teselas del mapa). Respaldo: (1)
 
 **Seeds:** script TS `scripts/seed.ts` (Admin API con service role) crea usuarios demo + ~12 comercios y ~8 recicladores ficticios con coordenadas realistas en Santa Ana y San Salvador, ~20 lotes publicados, ~60 retiros completados en los 6 meses previos con calificaciones. Las fotos de lotes sembrados son ilustraciones por polímero en `/public/seed/`. El mismo contenido lo usa `reset_demo`.
 
-**Variables de entorno** (`.env.example` en el repo; valores reales los pone el usuario en `.env.local` y en Vercel): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (solo servidor), `DEMO_PASSWORD`, `DEMO_RESET_TOKEN`, `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_SITE_URL` (dominio de producción; el QR del certificado apunta ahí).
+**Variables de entorno** (`.env.example` en el repo; valores reales los pone el usuario en `.env.local` y en Vercel): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (solo servidor; las llaves legacy anon/service_role se retiran a fines de 2026), `DEMO_PASSWORD`, `DEMO_RESET_TOKEN`, `NEXT_PUBLIC_DEMO_MODE`, `NEXT_PUBLIC_SITE_URL` (dominio de producción; el QR del certificado apunta ahí).
 
 ## Calendario y trabajo en paralelo
 
@@ -142,7 +142,7 @@ Tras aprobar este diseño: invocar `superpowers:writing-plans` para el plan deta
 
 ## Lo que hace el usuario (no Claude)
 - Crear la organización en Supabase y los dos proyectos (`reciclamigo-dev`, `reciclamigo-demo`, región East US); invitar al colaborador a la organización.
-- Copiar URL, anon key y service role key de `dev` a `.env.local`; las de `demo` a las variables de **Production** en Vercel y las de `dev` a **Preview**.
+- Copiar URL, publishable key y secret key de `dev` a `.env.local`; las de `demo` a las variables de **Production** en Vercel y las de `dev` a **Preview**.
 - `npx supabase login` (token personal) para que la CLI aplique migraciones.
 - Crear el repo en GitHub, pasar el link e invitar al colaborador (lo antes posible: la base se sube el día 1–2).
 - Importar el repo en Vercel.
