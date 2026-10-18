@@ -12,6 +12,10 @@ try {
 export default defineConfig({
   testDir: "e2e",
   timeout: 60_000,
+  // Todas las pruebas comparten el mismo proyecto Supabase y algunas reinician el demo:
+  // en serie, para que no se pisen.
+  workers: 1,
+  fullyParallel: false,
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     channel: "msedge",
