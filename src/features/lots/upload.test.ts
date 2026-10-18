@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { uploadLotPhotos, validatePhotoFiles, type PhotoStorage } from "./upload";
+import { removeLotPhotos, uploadLotPhotos, validatePhotoFiles, type PhotoStorage } from "./upload";
 
 const file = (name: string, type: string, size: number) => new File([new Uint8Array(size)], name, { type });
 
@@ -55,5 +55,22 @@ describe("uploadLotPhotos", () => {
       uploadLotPhotos(storage, "user-1", [file("a.jpg", "image/jpeg", 10), file("b.jpg", "image/jpeg", 10)]),
     ).rejects.toThrow('No se pudo subir la foto "b.jpg". Revisa la conexión e inténtalo de nuevo.');
     expect(removed).toEqual(uploaded);
+  });
+});
+
+describe("removeLotPhotos", () => {
+  test("borra por su ruta en el bucket las fotos de un lote que no se pudo publicar", async () => {
+    const { storage, removed } = fakeStorage();
+    await removeLotPhotos(storage, [
+      "https://abc.supabase.co/storage/v1/object/public/lot-photos/user-1/a.jpg",
+      "https://abc.supabase.co/storage/v1/object/public/lot-photos/user-1/b.png",
+    ]);
+    expect(removed).toEqual(["user-1/a.jpg", "user-1/b.png"]);
+  });
+
+  test("con lista vacía no llama al almacenamiento", async () => {
+    const { storage, removed } = fakeStorage();
+    await removeLotPhotos(storage, []);
+    expect(removed).toEqual([]);
   });
 });

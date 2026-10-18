@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { publishLot } from "../actions";
 import { firstIssue, MAX_NOTES, parseKg, publishLotSchema } from "../schemas";
 import { svDateInput, svDateTimeToIso } from "../sv-time";
-import { MAX_PHOTOS, supabasePhotoStorage, uploadLotPhotos, validatePhotoFiles } from "../upload";
+import { MAX_PHOTOS, removeLotPhotos, supabasePhotoStorage, uploadLotPhotos, validatePhotoFiles } from "../upload";
 
 const MODALITIES: { value: Modality; label: string }[] = [
   { value: "venta", label: "Venta" },
@@ -95,9 +95,11 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
 
     setSubmitting(true);
     try {
-      const photoUrls = await uploadLotPhotos(supabasePhotoStorage(createClient()), userId, files);
+      const storage = supabasePhotoStorage(createClient());
+      const photoUrls = await uploadLotPhotos(storage, userId, files);
       const result = await publishLot({ ...input, photoUrls });
       if (!result.ok) {
+        await removeLotPhotos(storage, photoUrls).catch(() => {}); // no dejar fotos de un lote que no existe
         setError(result.error);
         setSubmitting(false);
         return;
