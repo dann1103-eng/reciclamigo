@@ -5,7 +5,6 @@ import { BarChart3, Store, Truck } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { DemoAccountButton } from "@/components/shell/demo-account-button";
 import { SignInForm } from "@/components/shell/sign-in-form";
-import { switchDemoRole } from "@/lib/demo/actions";
 
 export const metadata: Metadata = { title: "Entrar" };
 
@@ -28,33 +27,30 @@ export default function EntrarPage() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <form action={switchDemoRole.bind(null, "comercio")}>
-              <DemoAccountButton
-                icon={<Store className="size-6" aria-hidden="true" />}
-                title="Comercio"
-                account="Comedor La Ceiba, Santa Ana"
-                detail="Publica lotes de plástico y ve su impacto."
-              />
-            </form>
-            <form action={switchDemoRole.bind(null, "reciclador")}>
-              <DemoAccountButton
-                icon={<Truck className="size-6" aria-hidden="true" />}
-                title="Reciclador"
-                account="Don José, reciclador de base"
-                detail="Encuentra lotes cerca en el mapa y los recoge."
-              />
-            </form>
+            <DemoAccountButton
+              role="comercio"
+              icon={<Store className="size-6" aria-hidden="true" />}
+              title="Comercio"
+              account="Comedor La Ceiba, Santa Ana"
+              detail="Publica lotes de plástico y ve su impacto."
+            />
+            <DemoAccountButton
+              role="reciclador"
+              icon={<Truck className="size-6" aria-hidden="true" />}
+              title="Reciclador"
+              account="Don José, reciclador de base"
+              detail="Encuentra lotes cerca en el mapa y los recoge."
+            />
           </div>
 
-          <form action={switchDemoRole.bind(null, "alcaldia")}>
-            <DemoAccountButton
-              quiet
-              icon={<BarChart3 className="size-5" aria-hidden="true" />}
-              title="Reportes de alcaldía"
-              account="Alcaldía de Santa Ana"
-              detail="Solo lectura: totales, mapa de calor y ranking."
-            />
-          </form>
+          <DemoAccountButton
+            role="alcaldia"
+            quiet
+            icon={<BarChart3 className="size-5" aria-hidden="true" />}
+            title="Reportes de alcaldía"
+            account="Alcaldía de Santa Ana"
+            detail="Solo lectura: totales, mapa de calor y ranking."
+          />
 
           <details className="group rounded-xl border border-border px-4 py-3">
             <summary className="cursor-pointer list-none text-sm font-semibold text-muted-foreground marker:hidden">
