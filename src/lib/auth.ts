@@ -3,7 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import type { UserRole } from "@/lib/domain/types";
+import type { TipoValorizador, UserRole } from "@/lib/domain/types";
 import { createClient } from "@/lib/supabase/server";
 
 export type SessionProfile = {
@@ -12,12 +12,15 @@ export type SessionProfile = {
   displayName: string;
   orgType: string;
   municipality: string;
+  /** Solo recicladores: 'base' (reciclador de base) o 'volumen' (comprador de volumen). */
+  tipoValorizador: TipoValorizador | null;
 };
 
 export const ROLE_HOME: Record<UserRole, string> = {
   generador: "/comercio",
   valorizador: "/reciclador",
   municipalidad: "/alcaldia",
+  administrador: "/admin",
 };
 
 /** Perfil del usuario con sesión, o null. Se memoriza por request. */
@@ -29,7 +32,7 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, display_name, org_type, municipality")
+    .select("id, role, display_name, org_type, municipality, tipo_valorizador")
     .eq("id", userId)
     .maybeSingle();
   if (!profile) return null;
@@ -40,6 +43,7 @@ export const getSessionProfile = cache(async (): Promise<SessionProfile | null> 
     displayName: profile.display_name,
     orgType: profile.org_type,
     municipality: profile.municipality,
+    tipoValorizador: profile.tipo_valorizador,
   };
 });
 

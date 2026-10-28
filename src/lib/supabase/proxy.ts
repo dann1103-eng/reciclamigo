@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
 // Áreas que exigen sesión. El rol exacto lo valida cada layout con requireRole().
-const PROTECTED_PREFIXES = ["/comercio", "/reciclador", "/alcaldia", "/perfil"];
+const PROTECTED_PREFIXES = ["/comercio", "/reciclador", "/alcaldia", "/perfil", "/admin", "/lote"];
 
 const isProtected = (pathname: string) =>
   PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

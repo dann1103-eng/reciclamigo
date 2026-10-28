@@ -1,8 +1,9 @@
 "use client";
 
 import { PolymerChip } from "@/components/polymer/polymer-chip";
-import { formatDistance, formatKg } from "@/lib/domain/format";
+import { formatDistance } from "@/lib/domain/format";
 import type { PolymerCode } from "@/lib/domain/polymers";
+import { formatLb } from "@/lib/domain/units";
 import { cn } from "@/lib/utils";
 
 import { formatPickupWindow } from "../format-window";
@@ -11,6 +12,7 @@ import type { NearbyLot, RadiusM } from "../types";
 export function LotList({
   lots,
   radiusM,
+  maxRadiusM,
   filtered,
   loading,
   onSelect,
@@ -18,6 +20,8 @@ export function LotList({
 }: {
   lots: NearbyLot[];
   radiusM: RadiusM;
+  /** El radio más grande disponible: a donde lleva "Ver a N km". */
+  maxRadiusM: RadiusM;
   filtered: boolean;
   loading: boolean;
   onSelect: (id: string) => void;
@@ -28,19 +32,19 @@ export function LotList({
       <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-input px-4 py-6">
         <p className="font-bold">No hay lotes a {radiusM / 1000} km</p>
         <p className="text-sm text-muted-foreground">
-          {radiusM < 5000
+          {radiusM < maxRadiusM
             ? "Amplía el radio para ver más comercios."
             : filtered
               ? "Prueba con otros tipos de plástico."
               : "Vuelve más tarde: los comercios publican durante el día."}
         </p>
-        {radiusM < 5000 ? (
+        {radiusM < maxRadiusM ? (
           <button
             type="button"
             onClick={onWiden}
             className="h-11 rounded-lg bg-brand px-4 text-sm font-semibold text-brand-foreground outline-none hover:bg-brand-strong focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            Ver a 5 km
+            Ver a {maxRadiusM / 1000} km
           </button>
         ) : null}
       </div>
@@ -60,7 +64,7 @@ export function LotList({
             <span className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <PolymerChip code={lot.polymer_code as PolymerCode} />
-                <span className="tabular font-bold">{formatKg(Number(lot.estimated_kg))}</span>
+                <span className="tabular font-bold">{formatLb(Number(lot.estimated_lb))}</span>
               </span>
               <span className="tabular text-sm font-semibold text-brand">{formatDistance(lot.distance_m)}</span>
             </span>

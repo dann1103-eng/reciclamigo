@@ -7,15 +7,17 @@ import { toast } from "sonner";
 
 import { PolymerChip } from "@/components/polymer/polymer-chip";
 import { buttonVariants } from "@/components/ui/button";
-import { formatUSD } from "@/lib/domain/format";
+import { LimitNotice } from "@/features/plans/components/limit-notice";
+import { formatPricePerLb, formatUSD } from "@/lib/domain/format";
 import { POLYMER_CODES, POLYMERS, type PolymerCode } from "@/lib/domain/polymers";
 import { suggestedTotal } from "@/lib/domain/pricing";
 import type { Modality } from "@/lib/domain/types";
+import { formatLb } from "@/lib/domain/units";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { publishLot } from "../actions";
-import { firstIssue, MAX_NOTES, parseKg, publishLotSchema } from "../schemas";
+import { firstIssue, MAX_NOTES, parseLb, publishLotSchema } from "../schemas";
 import { svDateInput, svDateTimeToIso } from "../sv-time";
 import { MAX_PHOTOS, removeLotPhotos, supabasePhotoStorage, uploadLotPhotos, validatePhotoFiles } from "../upload";
 
@@ -39,10 +41,24 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-export function PublishLotForm({ userId, prices }: { userId: string; prices: Record<PolymerCode, number> }) {
+export function PublishLotForm({
+  userId,
+  prices,
+  freeLotsLeft,
+  freeLimit,
+  planPriceUsd,
+}: {
+  userId: string;
+  /** Precio de referencia por libra de cada plástico (null = sin referencia). Viene de la configuración. */
+  prices: Record<PolymerCode, number | null>;
+  /** Lotes gratis que le quedan este mes; null = ilimitados (plan activo). */
+  freeLotsLeft: number | null;
+  freeLimit: number | null;
+  planPriceUsd: number;
+}) {
   const router = useRouter();
   const [polymer, setPolymer] = useState<PolymerCode | null>(null);
-  const [kgRaw, setKgRaw] = useState("");
+  const [lbRaw, setLbRaw] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [date, setDate] = useState(() => svDateInput(new Date(), 1));
   const [from, setFrom] = useState("09:00");
@@ -50,10 +66,12 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
   const [modality, setModality] = useState<Modality>("venta");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [limitHit, setLimitHit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const kg = parseKg(kgRaw);
-  const total = polymer && kg ? suggestedTotal(kg, prices[polymer] ?? 0, modality) : 0;
+  const lb = parseLb(lbRaw);
+  const refPrice = polymer ? (prices[polymer] ?? null) : null;
+  const total = polymer && lb && refPrice ? suggestedTotal(lb, refPrice, modality) : 0;
   const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
 
@@ -72,8 +90,9 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setLimitHit(false);
     if (!polymer) return setError("Elige el tipo de plástico");
-    if (kg === null) return setError("Escribe los kg aproximados, por ejemplo 40 o 35,5");
+    if (lb === null) return setError("Escribe las libras aproximadas, por ejemplo 90 o 85,5");
     const photoProblem = validatePhotoFiles(files);
     if (photoProblem) return setError(photoProblem);
     const pickupFrom = svDateTimeToIso(date, from);
@@ -82,7 +101,7 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
 
     const input = {
       polymerCode: polymer,
-      estimatedKg: kg,
+      estimatedLb: lb,
       pickupFrom,
       pickupTo,
       modality,
@@ -101,6 +120,7 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
       if (!result.ok) {
         await removeLotPhotos(storage, photoUrls).catch(() => {}); // no dejar fotos de un lote que no existe
         setError(result.error);
+        setLimitHit(result.code === "limite_gratis");
         setSubmitting(false);
         return;
       }
@@ -135,20 +155,21 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
           </div>
         </Section>
 
-        <Section title="¿Cuántos kg aproximados?" hint="El reciclador confirma el peso real al recoger.">
+        <Section title="¿Cuántas libras aproximadas?" hint="El peso real lo registras al entregar y el reciclador lo acepta o lo corrige.">
           <label className="flex w-full max-w-xs items-center gap-2">
-            <span className="sr-only">Kilogramos estimados</span>
+            <span className="sr-only">Libras estimadas</span>
             <input
               inputMode="decimal"
               autoComplete="off"
-              placeholder="40"
-              value={kgRaw}
-              onChange={(e) => setKgRaw(e.target.value)}
-              aria-invalid={kgRaw !== "" && kg === null}
+              placeholder="90"
+              value={lbRaw}
+              onChange={(e) => setLbRaw(e.target.value)}
+              aria-invalid={lbRaw !== "" && lb === null}
               className={cn(fieldClass, "tabular w-full text-lg font-semibold")}
             />
-            <span className="text-lg font-semibold text-muted-foreground">kg</span>
+            <span className="text-lg font-semibold text-muted-foreground">lb</span>
           </label>
+          {lb !== null && lb >= 100 ? <p className="tabular text-sm text-muted-foreground">{formatLb(lb)}</p> : null}
         </Section>
 
         <Section title="Fotos" hint={`Opcional, hasta ${MAX_PHOTOS}. Ayudan a que el reciclador sepa qué va a recoger.`}>
@@ -232,8 +253,10 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
           <p className="text-sm text-muted-foreground">
             {modality === "venta"
               ? polymer
-                ? `Precio de referencia: ${formatUSD(prices[polymer] ?? 0)} por kg de ${polymer}.`
-                : "El precio depende del tipo de plástico."
+                ? refPrice
+                  ? `Precio de referencia: ${formatPricePerLb(refPrice)} de ${polymer}.`
+                  : `El ${polymer} no tiene precio de referencia: lo acuerdas con el reciclador.`
+                : "El precio de referencia depende del tipo de plástico."
               : modality === "trueque"
                 ? "Acuerdan el intercambio directamente con el reciclador."
                 : "Lo entregas sin costo y igual cuenta para tu impacto."}
@@ -258,14 +281,24 @@ export function PublishLotForm({ userId, prices }: { userId: string; prices: Rec
         <h2 className="text-sm font-semibold text-muted-foreground">Resumen</h2>
         <div className="flex min-h-7 flex-wrap items-center gap-2">
           {polymer ? <PolymerChip code={polymer} /> : <span className="text-sm text-muted-foreground">Sin plástico elegido</span>}
-          {kg ? <span className="tabular text-sm font-semibold">{kg} kg</span> : null}
+          {lb ? <span className="tabular text-sm font-semibold">{formatLb(lb)}</span> : null}
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">{modality === "venta" ? "Total sugerido" : "Sin cobro"}</p>
+          <p className="text-sm text-muted-foreground">{modality === "venta" ? (refPrice ? "Total sugerido" : "Sin precio de referencia") : "Sin cobro"}</p>
           <p className="tabular text-4xl font-extrabold tracking-tight">{formatUSD(total)}</p>
           {polymer ? <p className="text-xs text-muted-foreground">{POLYMERS[polymer].name}</p> : null}
         </div>
-        {error ? (
+        {freeLotsLeft !== null ? (
+          <p className="text-sm text-muted-foreground">
+            {freeLotsLeft > 0
+              ? `${freeLotsLeft === 1 ? "Te queda 1 lote gratis" : `Te quedan ${freeLotsLeft} lotes gratis`} este mes${freeLimit ? ` (de ${freeLimit})` : ""}.`
+              : "Ya usaste tus lotes gratis de este mes."}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Lotes ilimitados con tu Plan Trazabilidad.</p>
+        )}
+        {limitHit && freeLimit ? <LimitNotice limit={freeLimit} priceUsd={planPriceUsd} /> : null}
+        {error && !(limitHit && freeLimit) ? (
           <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
             {error}
           </p>

@@ -1,13 +1,16 @@
-import { formatKg } from "@/lib/domain/format";
 import type { PolymerCode } from "@/lib/domain/polymers";
-import type { LotStatus } from "@/lib/domain/types";
+import type { LotStatus, Modality } from "@/lib/domain/types";
+import { formatLb } from "@/lib/domain/units";
 
 import { formatPickupWindow } from "./format-window";
 
 export type MyLot = {
   id: string;
   polymerCode: PolymerCode;
-  estimatedKg: number;
+  estimatedLb: number;
+  /** Precio de referencia del lote (USD por libra). */
+  pricePerLb: number;
+  modality: Modality;
   status: LotStatus;
   pickupFrom: string;
   pickupTo: string;
@@ -17,9 +20,11 @@ export type MyLot = {
     collectorId: string;
     collectorName: string;
     collectorWhatsapp: string | null;
-    confirmedKg: number | null;
+    proposedLb: number | null;
+    proposedPricePerLb: number | null;
+    confirmedLb: number | null;
     totalAmount: number | null;
-    certificateCode: string | null;
+    voucherCode: string | null;
     completedAt: string | null;
     myRatingGiven: boolean;
     myRating: number | null;
@@ -30,6 +35,7 @@ const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 /** Estado del lote en palabras del comercio. */
 export function myLotStatusLabel(lot: MyLot, now: Date = new Date()): string {
+  const collector = lot.pickup?.collectorName ?? "El reciclador";
   switch (lot.status) {
     case "publicado":
       return "Esperando reciclador";
@@ -38,9 +44,11 @@ export function myLotStatusLabel(lot: MyLot, now: Date = new Date()): string {
       return `${lot.pickup?.collectorName ?? "Un reciclador"} reservó tu lote: pasa ${window}`;
     }
     case "entregado":
-      return "Entregado, esperando la confirmación de kg";
+      return lot.pickup?.proposedLb
+        ? `Registraste ${formatLb(lot.pickup.proposedLb, 2)}. Esperando que ${collector} acepte o corrija`
+        : `Entregado, esperando que ${collector} confirme las libras`;
     case "completado":
-      return `${formatKg(lot.pickup?.confirmedKg ?? lot.estimatedKg)} confirmados`;
+      return `${formatLb(lot.pickup?.confirmedLb ?? lot.estimatedLb, 2)} confirmadas`;
     case "cancelado":
       return "Cancelado";
   }

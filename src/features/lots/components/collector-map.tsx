@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import { createLatestGuard } from "../latest";
 import { fetchNearbyLots } from "../queries";
-import { DEFAULT_RADIUS, type NearbyLot, type RadiusM } from "../types";
+import type { NearbyLot, RadiusM } from "../types";
 
 import { LotDetailPanel } from "./lot-detail-panel";
 import { LotFilters } from "./lot-filters";
@@ -28,16 +28,24 @@ export function CollectorMap({
   initialLots,
   collectorName,
   pendingPickups,
+  radii,
+  defaultRadiusM,
+  initialSelectedId = null,
 }: {
   center: LatLng;
   initialLots: NearbyLot[];
   collectorName: string;
   pendingPickups: number;
+  /** Radios disponibles (m) y el que se usa al abrir; salen de la configuración. */
+  radii: RadiusM[];
+  defaultRadiusM: RadiusM;
+  /** Lote que abrió un aviso push o un enlace (?lote=…); se muestra seleccionado si sigue publicado. */
+  initialSelectedId?: string | null;
 }) {
-  const [radiusM, setRadiusM] = useState<RadiusM>(DEFAULT_RADIUS);
+  const [radiusM, setRadiusM] = useState<RadiusM>(defaultRadiusM);
   const [polymers, setPolymers] = useState<PolymerCode[]>([]);
   const [lots, setLots] = useState(initialLots);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId && initialLots.some((l) => l.id === initialSelectedId) ? initialSelectedId : null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const first = useRef(true);
@@ -125,7 +133,7 @@ export function CollectorMap({
             />
           ) : (
             <>
-              <LotFilters radiusM={radiusM} polymers={polymers} onRadius={setRadiusM} onTogglePolymer={togglePolymer} />
+              <LotFilters radii={radii} radiusM={radiusM} polymers={polymers} onRadius={setRadiusM} onTogglePolymer={togglePolymer} />
               {error ? (
                 <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
                   {error}
@@ -134,10 +142,11 @@ export function CollectorMap({
               <LotList
                 lots={lots}
                 radiusM={radiusM}
+                maxRadiusM={radii[radii.length - 1]}
                 filtered={polymers.length > 0}
                 loading={loading}
                 onSelect={setSelectedId}
-                onWiden={() => setRadiusM(5000)}
+                onWiden={() => setRadiusM(radii[radii.length - 1])}
               />
             </>
           )}

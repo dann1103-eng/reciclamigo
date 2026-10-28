@@ -1,10 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-import { completePickupSchema, idSchema, parseKg, publishLotSchema, ratePickupSchema } from "./schemas";
+import { completePickupSchema, idSchema, parseLb, proposeDeliverySchema, publishLotSchema, ratePickupSchema } from "./schemas";
 
 const valid = {
   polymerCode: "PET",
-  estimatedKg: 40,
+  estimatedLb: 88,
   pickupFrom: "2099-10-21T15:00:00.000Z",
   pickupTo: "2099-10-21T17:00:00.000Z",
   modality: "venta",
@@ -17,10 +17,11 @@ describe("publishLotSchema", () => {
     expect(publishLotSchema.safeParse({ ...valid, notes: "En costales" }).success).toBe(true);
   });
 
-  test("rechaza kg fuera de rango, incluidos los que se redondearían a 0", () => {
-    expect(publishLotSchema.safeParse({ ...valid, estimatedKg: 0 }).success).toBe(false);
-    expect(publishLotSchema.safeParse({ ...valid, estimatedKg: 10001 }).success).toBe(false);
-    expect(publishLotSchema.safeParse({ ...valid, estimatedKg: 0.004 }).success).toBe(false);
+  test("rechaza libras fuera de rango, incluidas las que se redondearían a 0", () => {
+    expect(publishLotSchema.safeParse({ ...valid, estimatedLb: 0 }).success).toBe(false);
+    expect(publishLotSchema.safeParse({ ...valid, estimatedLb: 22001 }).success).toBe(false);
+    expect(publishLotSchema.safeParse({ ...valid, estimatedLb: 0.004 }).success).toBe(false);
+    expect(publishLotSchema.safeParse({ ...valid, estimatedLb: 22000 }).success).toBe(true);
   });
 
   test("rechaza una ventana vacía, invertida o ya pasada", () => {
@@ -46,50 +47,76 @@ describe("publishLotSchema", () => {
   });
 });
 
-describe("parseKg", () => {
+describe("parseLb", () => {
   test("acepta punto o coma decimal", () => {
-    expect(parseKg("35.5")).toBe(35.5);
-    expect(parseKg("35,5")).toBe(35.5);
-    expect(parseKg(" 40 ")).toBe(40);
+    expect(parseLb("35.5")).toBe(35.5);
+    expect(parseLb("35,5")).toBe(35.5);
+    expect(parseLb(" 40 ")).toBe(40);
+    expect(parseLb("0,09")).toBe(0.09);
   });
 
   test("una coma seguida de grupos de 3 dígitos es separador de miles (convención de El Salvador)", () => {
-    expect(parseKg("1,250")).toBe(1250);
-    expect(parseKg("1,250.5")).toBe(1250.5);
-    expect(parseKg("35,50")).toBe(35.5);
-    expect(parseKg("1.250,5")).toBe(1250.5);
+    expect(parseLb("1,250")).toBe(1250);
+    expect(parseLb("1,250.5")).toBe(1250.5);
+    expect(parseLb("35,50")).toBe(35.5);
+    expect(parseLb("1.250,5")).toBe(1250.5);
   });
 
   test("devuelve null si no es un número", () => {
-    expect(parseKg("")).toBeNull();
-    expect(parseKg("abc")).toBeNull();
-    expect(parseKg("1.2.3")).toBeNull();
+    expect(parseLb("")).toBeNull();
+    expect(parseLb("abc")).toBeNull();
+    expect(parseLb("1.2.3")).toBeNull();
+  });
+});
+
+const uuid = "8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11";
+
+describe("proposeDeliverySchema", () => {
+  const ok = (v: object) => proposeDeliverySchema.safeParse({ pickupId: uuid, ...v }).success;
+
+  test("acepta libras reales y un precio opcional", () => {
+    expect(ok({ lb: 100 })).toBe(true);
+    expect(ok({ lb: 100, pricePerLb: 0.09 })).toBe(true);
+    expect(ok({ lb: 100, pricePerLb: 0 })).toBe(true);
+  });
+
+  test("rechaza libras vacías o fuera de rango y precios negativos", () => {
+    expect(ok({ lb: 0 })).toBe(false);
+    expect(ok({ lb: 22001 })).toBe(false);
+    expect(ok({ lb: 100, pricePerLb: -0.01 })).toBe(false);
+    expect(proposeDeliverySchema.safeParse({ pickupId: "abc", lb: 10 }).success).toBe(false);
   });
 });
 
 describe("completePickupSchema", () => {
-  const uuid = "8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11";
   const ok = (v: object) => completePickupSchema.safeParse(v).success;
 
-  test("acepta kg positivos y un método de pago conocido", () => {
-    expect(ok({ pickupId: uuid, confirmedKg: 35.5, paymentMethod: "chivo_wallet" })).toBe(true);
-    expect(ok({ pickupId: uuid, confirmedKg: 12, paymentMethod: "efectivo" })).toBe(true);
+  test("aceptar la propuesta no pide libras", () => {
+    expect(ok({ pickupId: uuid, accept: true, paymentMethod: "efectivo" })).toBe(true);
   });
 
-  test("rechaza kg en cero, negativos o diminutos", () => {
-    expect(ok({ pickupId: uuid, confirmedKg: 0, paymentMethod: "efectivo" })).toBe(false);
-    expect(ok({ pickupId: uuid, confirmedKg: -3, paymentMethod: "efectivo" })).toBe(false);
-    expect(ok({ pickupId: uuid, confirmedKg: 0.004, paymentMethod: "efectivo" })).toBe(false);
+  test("corregir exige las libras reales; el precio es opcional", () => {
+    expect(ok({ pickupId: uuid, accept: false, confirmedLb: 95, paymentMethod: "chivo_wallet" })).toBe(true);
+    expect(ok({ pickupId: uuid, accept: false, confirmedLb: 95, finalPricePerLb: 0.1, paymentMethod: "efectivo" })).toBe(true);
+    const missing = completePickupSchema.safeParse({ pickupId: uuid, accept: false, paymentMethod: "efectivo" });
+    expect(missing.success).toBe(false);
+    expect(missing.error?.issues[0].message).toBe("Escribe las libras reales");
+  });
+
+  test("rechaza libras en cero, negativas o diminutas", () => {
+    expect(ok({ pickupId: uuid, accept: false, confirmedLb: 0, paymentMethod: "efectivo" })).toBe(false);
+    expect(ok({ pickupId: uuid, accept: false, confirmedLb: -3, paymentMethod: "efectivo" })).toBe(false);
+    expect(ok({ pickupId: uuid, accept: false, confirmedLb: 0.004, paymentMethod: "efectivo" })).toBe(false);
   });
 
   test("rechaza métodos de pago desconocidos y retiros sin id válido", () => {
-    expect(ok({ pickupId: uuid, confirmedKg: 35.5, paymentMethod: "bitcoin" })).toBe(false);
-    expect(ok({ pickupId: "abc", confirmedKg: 35.5, paymentMethod: "efectivo" })).toBe(false);
+    expect(ok({ pickupId: uuid, accept: true, paymentMethod: "bitcoin" })).toBe(false);
+    expect(ok({ pickupId: "abc", accept: true, paymentMethod: "efectivo" })).toBe(false);
   });
 });
 
 describe("ratePickupSchema", () => {
-  const pickupId = "8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11";
+  const pickupId = uuid;
   const ok = (v: object) => ratePickupSchema.safeParse({ pickupId, ...v }).success;
 
   test("acepta de 1 a 5 estrellas enteras, con o sin comentario", () => {
@@ -107,7 +134,7 @@ describe("ratePickupSchema", () => {
 
 describe("idSchema", () => {
   test("solo acepta uuid (las acciones no mandan basura a la base)", () => {
-    expect(idSchema.safeParse("8f14e45f-ceea-4e7a-9c4e-1f0a4e7d2b11").success).toBe(true);
+    expect(idSchema.safeParse(uuid).success).toBe(true);
     expect(idSchema.safeParse("abc").success).toBe(false);
     expect(idSchema.safeParse("").success).toBe(false);
   });

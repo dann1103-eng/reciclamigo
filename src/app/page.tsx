@@ -5,14 +5,17 @@ import { Logo } from "@/components/brand/logo";
 import { DemoMap } from "@/components/landing/demo-map";
 import { WeighTicket } from "@/components/landing/weigh-ticket";
 import { buttonVariants } from "@/components/ui/button";
+import { getSettings } from "@/lib/settings/load";
 
 const PILOT_GOALS = [
-  { value: "180 t", label: "de plástico fuera del vertedero" },
+  { value: "397,000 lb", label: "de plástico fuera del vertedero" },
   { value: "35", label: "recicladores de base formalizados" },
   { value: "360 t", label: "de CO₂e evitadas" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // La portada no puede caerse si la base no responde: sin configuración, la boleta omite el CO₂.
+  const settings = await getSettings().catch(() => null);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 pt-6 sm:px-8">
@@ -26,23 +29,33 @@ export default function Home() {
             Mercado de plástico reciclable en Santa Ana y San Salvador
           </p>
           <h1 className="mt-4 text-[clamp(2.25rem,1.4rem+3vw,3.75rem)] leading-[1.02] font-extrabold tracking-[-0.025em] [font-stretch:88%]">
-            El plástico de tu negocio tiene comprador a 3 km.
+            El plástico de tu negocio tiene comprador cerca.
           </h1>
           <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
-            Publicas el lote, un reciclador cercano lo recoge y cada kilo queda
-            registrado con su certificado para la Ley ANDRES.
+            Publicas el lote, un reciclador cercano lo reserva y lo recoge, y cada libra queda
+            registrada con su comprobante de entrega.
+          </p>
+          <p className="mt-3 max-w-[46ch] text-base leading-relaxed text-muted-foreground">
+            Vender siempre es gratis. El plan es para quien necesita documentar lo que recicla.{" "}
+            <Link href="/planes" className="font-semibold text-brand underline-offset-4 hover:underline">
+              Ver planes
+            </Link>
           </p>
           <Link href="/entrar" className={buttonVariants({ size: "xl", className: "mt-8" })}>
             Entrar al demo
             <ArrowRight data-icon="inline-end" aria-hidden="true" />
           </Link>
+          <p className="mt-4 max-w-[46ch] text-sm text-muted-foreground">
+            ¿Eres reciclador? No necesitas descargar nada: entras desde un enlace o un QR y coordinas con el comercio por
+            WhatsApp.
+          </p>
         </section>
 
         <div className="relative pb-6 lg:pb-0">
           <div className="overflow-hidden rounded-2xl border border-border shadow-raised lg:ml-20">
             <DemoMap />
           </div>
-          <WeighTicket className="relative mx-auto -mt-16 -rotate-1 sm:mr-6 sm:ml-auto lg:absolute lg:-bottom-16 lg:-left-6 lg:m-0 lg:-rotate-2" />
+          <WeighTicket co2Factor={settings?.co2Factor} className="relative mx-auto -mt-16 -rotate-1 sm:mr-6 sm:ml-auto lg:absolute lg:-bottom-16 lg:-left-6 lg:m-0 lg:-rotate-2" />
         </div>
       </main>
 

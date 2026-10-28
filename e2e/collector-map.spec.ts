@@ -52,30 +52,37 @@ test("sin lotes en el radio muestra cómo ampliar la búsqueda", async ({ page }
 test("reservar lleva a Mis retiros y un segundo intento sobre el mismo lote falla", async ({ browser }) => {
   const a = await (await browser.newContext()).newPage();
   const b = await (await browser.newContext()).newPage();
+  // WhatsApp se abre al reservar: no hace falta salir a internet.
+  for (const page of [a, b]) {
+    await page.context().route("https://wa.me/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "ok" }));
+  }
   await enterAs(a, "Reciclador");
   await enterAs(b, "Reciclador");
 
   // Ambos abren el mismo lote (el más cercano).
   await lotItems(a).first().click();
   await lotItems(b).first().click();
-  const kg = await a.locator("article p").first().textContent();
+  const weight = await a.locator("article p").first().textContent();
 
-  await a.getByRole("button", { name: "Reservar retiro" }).click();
+  await a.getByRole("button", { name: /^Reservar/ }).click();
   await expect(a).toHaveURL(/\/reciclador\/retiros$/);
 
-  await b.getByRole("button", { name: "Reservar retiro" }).click();
+  await b.getByRole("button", { name: /^Reservar/ }).click();
   await expect(b.getByText("El lote ya no está disponible")).toBeVisible();
-  await expect(b.getByRole("button", { name: "Reservar retiro" })).toBeHidden(); // vuelve a la lista
-  expect(kg).toBeTruthy();
+  await expect(b.getByRole("button", { name: /^Reservar/ })).toBeHidden(); // vuelve a la lista
+  expect(weight).toMatch(/lb/);
 });
 
-test("la ficha permite escribirle al comercio por WhatsApp con el mensaje listo", async ({ page }) => {
+test("reservar abre WhatsApp con el mensaje listo: código del lote, plástico, libras y enlace al lote", async ({ page }) => {
+  await page.context().route("https://wa.me/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "ok" }));
   await enterAs(page, "Reciclador");
   await lotItems(page).first().click();
-  const link = page.getByRole("link", { name: /^Contactar por WhatsApp/ });
-  await expect(link).toHaveAttribute("target", "_blank");
-  const href = (await link.getAttribute("href")) ?? "";
-  expect(href).toMatch(/^https:\/\/wa\.me\/5037\d{7}\?text=/);
-  const text = decodeURIComponent(href.split("?text=")[1]);
-  expect(text).toMatch(/^Hola, soy Don José de Reciclamigo\. Voy por tu lote de .+ kg de (PET|HDPE|LDPE|PP|PS) \(.+\)\.$/);
+  const whatsapp = page.context().waitForEvent("page");
+  await page.getByRole("button", { name: /^Reservar/ }).click();
+  const url = (await whatsapp).url();
+  expect(url).toMatch(/^https:\/\/wa\.me\/5037\d{7}\?text=/); // número en formato +503
+  const text = decodeURIComponent(url.split("?text=")[1]);
+  expect(text).toMatch(
+    /^Hola, soy Don José de Reciclamigo\. Reservé tu lote L-[0-9A-F]{6}: .+ lb.* de (PET|HDPE|LDPE|PP|PS) \(.+\)\. Míralo aquí: .+\/lote\/[0-9a-f-]{36}$/,
+  );
 });

@@ -11,11 +11,11 @@ import { POLYMERS, type PolymerCode } from "@/lib/domain/polymers";
 import type { LatLng } from "@/lib/geo";
 
 import { spreadOverlapping } from "../spread";
+import { zoomForRadius } from "../radius";
 import type { NearbyLot, RadiusM } from "../types";
 
 // Leaflet pinta con atributos SVG, que no aceptan var(): mismo valor que --brand en globals.css.
 const BRAND = "oklch(0.42 0.09 158)";
-const ZOOM: Record<RadiusM, number> = { 1000: 15, 3000: 13, 5000: 12 };
 
 const iconCache = new Map<string, L.DivIcon>();
 
@@ -69,7 +69,7 @@ export function LotsMap({
   return (
     <MapContainer
       center={[center.lat, center.lng]}
-      zoom={ZOOM[radiusM]}
+      zoom={zoomForRadius(radiusM)}
       scrollWheelZoom
       // Teselas un poco apagadas para que resalten los pines de colores.
       className="size-full [&_.leaflet-tile-pane]:saturate-[0.55]"
@@ -100,13 +100,13 @@ export function LotsMap({
           position={[lot.lat, lot.lng]}
           icon={pinIcon(lot.polymer_code as PolymerCode, lot.id === selectedId, lot.offsetPx)}
           zIndexOffset={lot.id === selectedId ? 1000 : 0}
-          title={`${lot.polymer_code}, ${lot.estimated_kg} kg, ${lot.generator_name}`}
+          title={`${lot.polymer_code}, ${lot.estimated_lb} lb, ${lot.generator_name}`}
           eventHandlers={{ click: () => onSelect(lot.id) }}
         />
       ))}
       <FlyTo
         target={selected ?? center}
-        zoom={selected ? Math.max(ZOOM[radiusM], 15) : ZOOM[radiusM]}
+        zoom={selected ? Math.max(zoomForRadius(radiusM), 15) : zoomForRadius(radiusM)}
       />
     </MapContainer>
   );

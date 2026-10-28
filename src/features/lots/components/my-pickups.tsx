@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getSessionProfile } from "@/lib/auth";
+import { getSettings } from "@/lib/settings/load";
 import { createClient } from "@/lib/supabase/server";
 
 import { groupMyPickups, type MyPickup } from "../pickups";
@@ -13,11 +14,13 @@ function Group({
   pickups,
   highlightId,
   collectorName,
+  co2Factor,
 }: {
   title: string;
   pickups: MyPickup[];
   highlightId?: string;
   collectorName: string;
+  co2Factor: number;
 }) {
   if (pickups.length === 0) return null;
   return (
@@ -25,7 +28,7 @@ function Group({
       <h2 className="text-sm font-semibold text-muted-foreground">{title}</h2>
       <ul className="flex flex-col gap-3">
         {pickups.map((p) => (
-          <PickupRow key={p.id} pickup={p} highlighted={p.id === highlightId} collectorName={collectorName} />
+          <PickupRow key={p.id} pickup={p} highlighted={p.id === highlightId} collectorName={collectorName} co2Factor={co2Factor} />
         ))}
       </ul>
     </section>
@@ -34,9 +37,10 @@ function Group({
 
 export async function MyPickups({ collectorId, highlightId }: { collectorId: string; highlightId?: string }) {
   const supabase = await createClient();
-  const [pickups, profile] = await Promise.all([fetchMyPickups(supabase, collectorId), getSessionProfile()]);
+  const [pickups, profile, settings] = await Promise.all([fetchMyPickups(supabase, collectorId), getSessionProfile(), getSettings()]);
   const collectorName = profile?.displayName ?? "Reciclamigo";
   const { toCollect, toConfirm, completed } = groupMyPickups(pickups);
+  const shared = { highlightId, collectorName, co2Factor: settings.co2Factor };
 
   if (!toCollect.length && !toConfirm.length && !completed.length) {
     return (
@@ -52,14 +56,9 @@ export async function MyPickups({ collectorId, highlightId }: { collectorId: str
 
   return (
     <div className="flex flex-col gap-8">
-      <Group title="Listos para confirmar" pickups={toConfirm} highlightId={highlightId} collectorName={collectorName} />
-      <Group title="Por recoger" pickups={toCollect} highlightId={highlightId} collectorName={collectorName} />
-      <Group
-        title="Completados en los últimos 30 días"
-        pickups={completed}
-        highlightId={highlightId}
-        collectorName={collectorName}
-      />
+      <Group title="Listos para confirmar" pickups={toConfirm} {...shared} />
+      <Group title="Por recoger" pickups={toCollect} {...shared} />
+      <Group title="Confirmados en los últimos 30 días" pickups={completed} {...shared} />
     </div>
   );
 }

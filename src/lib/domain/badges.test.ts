@@ -3,9 +3,8 @@ import { computeBadges, type ProfileStats } from "./badges";
 
 const base: ProfileStats = {
   role: "generador",
-  lotsPublished: 0,
   completedCount: 0,
-  completedKg: 0,
+  completedLb: 0,
   ratingAvg: null,
   ratingCount: 0,
   verified: false,
@@ -17,13 +16,24 @@ describe("computeBadges", () => {
     expect(computeBadges(base)).toEqual([]);
   });
 
-  test("primer lote: comercio con un lote publicado o reciclador con un retiro", () => {
-    expect(ids({ ...base, lotsPublished: 1 })).toEqual(["primer-lote"]);
-    expect(ids({ ...base, role: "valorizador", completedCount: 1 })).toEqual(["primer-lote"]);
+  test("publicar lotes no da insignia: solo cuentan las entregas confirmadas", () => {
+    expect(ids({ ...base, completedCount: 0 })).toEqual([]);
   });
 
-  test("insignias por kg desviados", () => {
-    expect(ids({ ...base, completedKg: 1000 })).toEqual(["100-kg", "1-tonelada"]);
+  test("Comercio Circular: un comercio con al menos una entrega confirmada", () => {
+    expect(ids({ ...base, completedCount: 1 })).toEqual(["comercio-circular"]);
+    const [badge] = computeBadges({ ...base, completedCount: 1 });
+    expect(badge.label).toBe("Comercio Circular");
+  });
+
+  test("primera entrega: el reciclador con una entrega confirmada", () => {
+    expect(ids({ ...base, role: "valorizador", completedCount: 1 })).toEqual(["primera-entrega"]);
+  });
+
+  test("insignias por libras entregadas: 1 quintal (100 lb) y 1 tonelada (2,204.62 lb)", () => {
+    expect(ids({ ...base, completedCount: 1, completedLb: 99.9 })).toEqual(["comercio-circular"]);
+    expect(ids({ ...base, completedCount: 1, completedLb: 100 })).toEqual(["comercio-circular", "1-quintal"]);
+    expect(ids({ ...base, completedCount: 2, completedLb: 2204.62 })).toEqual(["comercio-circular", "1-quintal", "1-tonelada"]);
   });
 
   test("5 estrellas exige promedio ≥ 4.8 con al menos 3 calificaciones", () => {
@@ -37,8 +47,8 @@ describe("computeBadges", () => {
   });
 
   test("cada insignia trae etiqueta y descripción", () => {
-    const [badge] = computeBadges({ ...base, completedKg: 100 });
-    expect(badge).toMatchObject({ id: "100-kg", label: "100 kg" });
-    expect(badge.description.length).toBeGreaterThan(0);
+    const badge = computeBadges({ ...base, completedCount: 1, completedLb: 100 }).find((b) => b.id === "1-quintal");
+    expect(badge).toMatchObject({ id: "1-quintal", label: "1 quintal" });
+    expect(badge?.description.length).toBeGreaterThan(0);
   });
 });

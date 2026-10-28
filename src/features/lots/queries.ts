@@ -39,14 +39,16 @@ export async function fetchCollectorPoint(supabase: Client, collectorId: string)
 }
 
 const MY_LOT_FIELDS =
-  "id, polymer_code, estimated_kg, status, pickup_from, pickup_to, created_at, pickups(id, collector_id, confirmed_kg, total_amount, certificate_code, completed_at, collector:profiles!pickups_collector_id_fkey(display_name, profile_private(whatsapp)), ratings(rater_id, stars))";
+  "id, polymer_code, estimated_lb, price_per_lb, modality, status, pickup_from, pickup_to, created_at, pickups(id, collector_id, proposed_lb, proposed_price_per_lb, confirmed_lb, total_amount, voucher_code, completed_at, collector:profiles!pickups_collector_id_fkey(display_name, profile_private(whatsapp)), ratings(rater_id, stars))";
 
 type RawPickup = {
   id: string;
   collector_id: string;
-  confirmed_kg: number | null;
+  proposed_lb: number | null;
+  proposed_price_per_lb: number | null;
+  confirmed_lb: number | null;
   total_amount: number | null;
-  certificate_code: string | null;
+  voucher_code: string | null;
   completed_at: string | null;
   collector: { display_name: string; profile_private: { whatsapp: string | null } | null } | null;
   ratings: { rater_id: string; stars: number }[];
@@ -54,6 +56,7 @@ type RawPickup = {
 
 // PostgREST devuelve la relación 1 a 1 como objeto, pero según la versión puede venir como arreglo.
 const one = <T,>(value: T | T[] | null | undefined): T | null => (Array.isArray(value) ? (value[0] ?? null) : (value ?? null));
+const numOrNull = (value: number | string | null | undefined) => (value === null || value === undefined ? null : Number(value));
 
 const THIRTY_DAYS_MS = 30 * 86_400_000;
 
@@ -75,7 +78,9 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
       return {
         id: row.id as string,
         polymerCode: row.polymer_code as PolymerCode,
-        estimatedKg: Number(row.estimated_kg),
+        estimatedLb: Number(row.estimated_lb),
+        pricePerLb: Number(row.price_per_lb),
+        modality: row.modality as Modality,
         status: row.status as LotStatus,
         pickupFrom: row.pickup_from as string,
         pickupTo: row.pickup_to as string,
@@ -86,9 +91,11 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
               collectorId: p.collector_id,
               collectorName: collector?.display_name ?? "Reciclador",
               collectorWhatsapp: one(collector?.profile_private)?.whatsapp ?? null,
-              confirmedKg: p.confirmed_kg === null ? null : Number(p.confirmed_kg),
-              totalAmount: p.total_amount === null ? null : Number(p.total_amount),
-              certificateCode: p.certificate_code,
+              proposedLb: numOrNull(p.proposed_lb),
+              proposedPricePerLb: numOrNull(p.proposed_price_per_lb),
+              confirmedLb: numOrNull(p.confirmed_lb),
+              totalAmount: numOrNull(p.total_amount),
+              voucherCode: p.voucher_code,
               completedAt: p.completed_at,
               myRatingGiven: (p.ratings ?? []).some((r) => r.rater_id === generatorId),
               myRating: (p.ratings ?? []).find((r) => r.rater_id === generatorId)?.stars ?? null,
@@ -105,23 +112,25 @@ export async function fetchMyLots(supabase: Client, generatorId: string, now: Da
 }
 
 const MY_PICKUP_FIELDS =
-  "id, lot_id, confirmed_kg, total_amount, certificate_code, completed_at, ratings(rater_id, stars), lot:lots!pickups_lot_id_fkey(polymer_code, estimated_kg, status, pickup_from, pickup_to, price_per_kg, modality, generator_id, generator:profiles!lots_generator_id_fkey(display_name, profile_private(whatsapp)))";
+  "id, lot_id, proposed_lb, proposed_price_per_lb, confirmed_lb, total_amount, voucher_code, completed_at, ratings(rater_id, stars), lot:lots!pickups_lot_id_fkey(polymer_code, estimated_lb, status, pickup_from, pickup_to, price_per_lb, modality, generator_id, generator:profiles!lots_generator_id_fkey(display_name, profile_private(whatsapp)))";
 
 type RawMyPickup = {
   id: string;
   lot_id: string;
-  confirmed_kg: number | null;
+  proposed_lb: number | null;
+  proposed_price_per_lb: number | null;
+  confirmed_lb: number | null;
   total_amount: number | null;
-  certificate_code: string | null;
+  voucher_code: string | null;
   completed_at: string | null;
   ratings: { rater_id: string; stars: number }[] | null;
   lot: {
     polymer_code: string;
-    estimated_kg: number;
+    estimated_lb: number;
     status: string;
     pickup_from: string;
     pickup_to: string;
-    price_per_kg: number;
+    price_per_lb: number;
     modality: string;
     generator_id: string;
     generator: { display_name: string; profile_private: { whatsapp: string | null } | null } | null;
@@ -147,8 +156,8 @@ export async function fetchMyPickups(supabase: Client, collectorId: string): Pro
         id: row.id,
         lotId: row.lot_id,
         polymerCode: lot.polymer_code as PolymerCode,
-        estimatedKg: Number(lot.estimated_kg),
-        pricePerKg: Number(lot.price_per_kg),
+        estimatedLb: Number(lot.estimated_lb),
+        pricePerLb: Number(lot.price_per_lb),
         modality: lot.modality as Modality,
         status: lot.status as LotStatus,
         pickupFrom: lot.pickup_from,
@@ -156,13 +165,63 @@ export async function fetchMyPickups(supabase: Client, collectorId: string): Pro
         generatorId: lot.generator_id,
         generatorName: generator?.display_name ?? "Comercio",
         generatorWhatsapp: one(generator?.profile_private)?.whatsapp ?? null,
-        confirmedKg: row.confirmed_kg === null ? null : Number(row.confirmed_kg),
-        totalAmount: row.total_amount === null ? null : Number(row.total_amount),
-        certificateCode: row.certificate_code,
+        proposedLb: numOrNull(row.proposed_lb),
+        proposedPricePerLb: numOrNull(row.proposed_price_per_lb),
+        confirmedLb: numOrNull(row.confirmed_lb),
+        totalAmount: numOrNull(row.total_amount),
+        voucherCode: row.voucher_code,
         completedAt: row.completed_at,
         myRatingGiven: (row.ratings ?? []).some((r) => r.rater_id === collectorId),
         myRating: (row.ratings ?? []).find((r) => r.rater_id === collectorId)?.stars ?? null,
       },
     ];
   });
+}
+
+export type LotSummary = {
+  id: string;
+  polymerCode: PolymerCode;
+  estimatedLb: number;
+  pricePerLb: number;
+  modality: Modality;
+  status: LotStatus;
+  pickupFrom: string;
+  pickupTo: string;
+  generatorId: string;
+  generatorName: string;
+};
+
+/** Un lote por id (para /lote/[id], el enlace que va en el mensaje de WhatsApp). RLS: lo ven comercios y recicladores. */
+export async function fetchLotSummary(supabase: Client, lotId: string): Promise<LotSummary | null> {
+  const { data, error } = await supabase
+    .from("lots")
+    .select("id, polymer_code, estimated_lb, price_per_lb, modality, status, pickup_from, pickup_to, generator_id, generator:profiles!lots_generator_id_fkey(display_name)")
+    .eq("id", lotId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const row = data as unknown as {
+    id: string;
+    polymer_code: string;
+    estimated_lb: number;
+    price_per_lb: number;
+    modality: string;
+    status: string;
+    pickup_from: string;
+    pickup_to: string;
+    generator_id: string;
+    generator: { display_name: string } | { display_name: string }[] | null;
+  };
+  return {
+    id: row.id,
+    polymerCode: row.polymer_code as PolymerCode,
+    estimatedLb: Number(row.estimated_lb),
+    pricePerLb: Number(row.price_per_lb),
+    modality: row.modality as Modality,
+    status: row.status as LotStatus,
+    pickupFrom: row.pickup_from,
+    pickupTo: row.pickup_to,
+    generatorId: row.generator_id,
+    generatorName: one(row.generator)?.display_name ?? "Comercio",
+  };
 }

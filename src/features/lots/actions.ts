@@ -1,22 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
+import { failure, type ActionResult } from "@/lib/action-result";
+import { processDueNotifications } from "@/lib/notify/queue";
 import { createClient } from "@/lib/supabase/server";
 
 import {
   completePickupSchema,
   firstIssue,
   idSchema,
+  proposeDeliverySchema,
   publishLotSchema,
   ratePickupSchema,
   type CompletePickupInput,
+  type ProposeDeliveryInput,
   type PublishLotInput,
   type RatePickupInput,
 } from "./schemas";
-import type { ActionResult } from "./types";
 
-/** Publica un lote. La ubicación y el precio los fija la base (RPC publish_lot). */
+/** Manda ya los avisos sin retraso; los demás los saca el cron. Un fallo aquí nunca rompe la acción. */
+function sendDueNotifications() {
+  after(async () => {
+    try {
+      await processDueNotifications();
+    } catch {
+      // el cron de Vercel lo reintenta
+    }
+  });
+}
+
+/**
+ * Publica un lote. La ubicación y el precio de referencia los fija la base (RPC publish_lot),
+ * que también aplica el límite de lotes gratis del mes: el aviso llega en `code: "limite_gratis"`.
+ */
 export async function publishLot(input: PublishLotInput): Promise<ActionResult<{ lotId: string }>> {
   const parsed = publishLotSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -25,17 +43,31 @@ export async function publishLot(input: PublishLotInput): Promise<ActionResult<{
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("publish_lot", {
     p_polymer_code: lot.polymerCode,
-    p_estimated_kg: lot.estimatedKg,
+    p_estimated_lb: lot.estimatedLb,
     p_pickup_from: lot.pickupFrom,
     p_pickup_to: lot.pickupTo,
     p_modality: lot.modality,
     p_photo_urls: lot.photoUrls,
     p_notes: lot.notes ?? null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure(error);
 
   revalidatePath("/comercio");
   revalidatePath("/reciclador");
+  sendDueNotifications();
+  return { ok: true, data: { lotId: data } };
+}
+
+/** Vuelve a publicar un lote igual con un toque (la ventana de retiro pasa a un día futuro). */
+export async function repeatLot(lotId: string): Promise<ActionResult<{ lotId: string }>> {
+  if (!idSchema.safeParse(lotId).success) return { ok: false, error: "Lote inválido" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("repeat_lot", { p_lot_id: lotId });
+  if (error) return failure(error);
+  revalidatePath("/comercio");
+  revalidatePath("/comercio/historial");
+  revalidatePath("/reciclador");
+  sendDueNotifications();
   return { ok: true, data: { lotId: data } };
 }
 
@@ -44,41 +76,67 @@ export async function reserveLot(lotId: string): Promise<ActionResult<{ pickupId
   if (!idSchema.safeParse(lotId).success) return { ok: false, error: "Lote inválido" };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("reserve_lot", { p_lot_id: lotId });
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure(error);
   revalidatePath("/reciclador");
   revalidatePath("/reciclador/retiros");
   revalidatePath("/comercio");
+  sendDueNotifications();
   return { ok: true, data: { pickupId: data } };
 }
 
-/** El comercio confirma que entregó el material al reciclador. */
-export async function markDelivered(pickupId: string): Promise<ActionResult> {
-  if (!idSchema.safeParse(pickupId).success) return { ok: false, error: "Retiro inválido" };
+/**
+ * El comercio registra la entrega con el peso real y el precio final. Todavía no cuenta: el
+ * reciclador la acepta o la corrige (complete_pickup) y solo entonces hay comprobante.
+ */
+export async function proposeDelivery(input: ProposeDeliveryInput): Promise<ActionResult> {
+  const parsed = proposeDeliverySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("mark_delivered", { p_pickup_id: pickupId });
-  if (error) return { ok: false, error: error.message };
+  const { error } = await supabase.rpc("propose_delivery", {
+    p_pickup_id: parsed.data.pickupId,
+    p_lb: parsed.data.lb,
+    p_price_per_lb: parsed.data.pricePerLb ?? null,
+  });
+  if (error) return failure(error);
   revalidatePath("/comercio");
   revalidatePath("/reciclador/retiros");
+  sendDueNotifications();
   return { ok: true, data: undefined };
 }
 
-/** El reciclador confirma los kg reales y cómo se pagó (solo se registra). Devuelve el código del certificado. */
-export async function completePickup(input: CompletePickupInput): Promise<ActionResult<{ certificateCode: string }>> {
+/** El reciclador acepta o corrige lo que registró el comercio. Devuelve el código del comprobante. */
+export async function completePickup(input: CompletePickupInput): Promise<ActionResult<{ voucherCode: string }>> {
   const parsed = completePickupSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("complete_pickup", {
     p_pickup_id: parsed.data.pickupId,
-    p_confirmed_kg: parsed.data.confirmedKg,
+    p_accept: parsed.data.accept,
+    p_confirmed_lb: parsed.data.accept ? null : (parsed.data.confirmedLb ?? null),
+    p_final_price_per_lb: parsed.data.accept ? null : (parsed.data.finalPricePerLb ?? null),
     p_payment_method: parsed.data.paymentMethod,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure(error);
   revalidatePath("/reciclador/retiros");
   revalidatePath("/comercio");
-  return { ok: true, data: { certificateCode: data } };
+  sendDueNotifications();
+  return { ok: true, data: { voucherCode: data } };
 }
 
-/** Cada parte califica a la otra una vez, cuando el retiro está completado. */
+/** El comercio o el reciclador suelta una reserva que todavía no tiene entrega: el lote se publica de nuevo. */
+export async function releaseReservation(pickupId: string): Promise<ActionResult> {
+  if (!idSchema.safeParse(pickupId).success) return { ok: false, error: "Retiro inválido" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("release_reservation", { p_pickup_id: pickupId });
+  if (error) return failure(error);
+  revalidatePath("/comercio");
+  revalidatePath("/reciclador");
+  revalidatePath("/reciclador/retiros");
+  sendDueNotifications();
+  return { ok: true, data: undefined };
+}
+
+/** Cada parte califica a la otra una vez, cuando la entrega está confirmada. */
 export async function ratePickup(input: RatePickupInput): Promise<ActionResult> {
   const parsed = ratePickupSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
@@ -88,7 +146,7 @@ export async function ratePickup(input: RatePickupInput): Promise<ActionResult> 
     p_stars: parsed.data.stars,
     p_comment: parsed.data.comment || null,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return failure(error);
   revalidatePath("/comercio");
   revalidatePath("/reciclador/retiros");
   return { ok: true, data: undefined };
