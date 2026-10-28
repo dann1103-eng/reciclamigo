@@ -14,6 +14,7 @@ const DEMO_ROLE: Record<UserRole, DemoRole> = {
   generador: "comercio",
   valorizador: "reciclador",
   municipalidad: "alcaldia",
+  administrador: "admin",
 };
 
 const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";

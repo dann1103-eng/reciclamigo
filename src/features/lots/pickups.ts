@@ -5,8 +5,9 @@ export type MyPickup = {
   id: string;
   lotId: string;
   polymerCode: PolymerCode;
-  estimatedKg: number;
-  pricePerKg: number;
+  estimatedLb: number;
+  /** Precio de referencia del lote (USD por libra); el comercio puede proponer otro al registrar la entrega. */
+  pricePerLb: number;
   modality: Modality;
   status: LotStatus;
   pickupFrom: string;
@@ -14,9 +15,12 @@ export type MyPickup = {
   generatorId: string;
   generatorName: string;
   generatorWhatsapp: string | null;
-  confirmedKg: number | null;
+  /** Lo que el comercio registró como entrega, a la espera de que el reciclador acepte o corrija. */
+  proposedLb: number | null;
+  proposedPricePerLb: number | null;
+  confirmedLb: number | null;
   totalAmount: number | null;
-  certificateCode: string | null;
+  voucherCode: string | null;
   completedAt: string | null;
   myRatingGiven: boolean;
   myRating: number | null;

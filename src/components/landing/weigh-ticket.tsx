@@ -1,22 +1,24 @@
 import { PolymerChip } from "@/components/polymer/polymer-chip";
-import { formatDistance, formatKg, formatUSD } from "@/lib/domain/format";
-import { co2eAvoidedKg } from "@/lib/domain/impact";
+import { formatDistance, formatPricePerLb, formatUSD } from "@/lib/domain/format";
 import { suggestedTotal } from "@/lib/domain/pricing";
+import { co2AvoidedKg, formatCo2, formatLb } from "@/lib/domain/units";
 import { cn } from "@/lib/utils";
 
-// Un retiro de ejemplo, calculado con las mismas reglas que usa la app.
-const KG = 40;
-const PRICE_PER_KG = 0.2;
+// Una entrega de ejemplo, calculada con las mismas reglas que usa la app.
+const LB = 100;
+const PRICE_PER_LB = 0.09;
 const DISTANCE_M = 1800;
 
 /** Boleta de báscula: cómo queda registrado un retiro. */
-export function WeighTicket({ className }: { className?: string }) {
+/** `co2Factor` viene de la configuración; sin él (por ejemplo, si la base no responde) no se muestra el CO₂. */
+export function WeighTicket({ className, co2Factor }: { className?: string; co2Factor?: number }) {
   const rows: [string, React.ReactNode][] = [
     ["Comercio", "Comedor La Ceiba"],
     ["Material", <PolymerChip key="chip" code="PET" />],
-    ["Peso confirmado", formatKg(KG)],
+    ["Peso confirmado", formatLb(LB)],
     ["Retiró", `Don José, a ${formatDistance(DISTANCE_M)}`],
-    ["Pago", `${formatUSD(suggestedTotal(KG, PRICE_PER_KG, "venta"))} en efectivo`],
+    ["Precio", formatPricePerLb(PRICE_PER_LB)],
+    ["Pago", `${formatUSD(suggestedTotal(LB, PRICE_PER_LB, "venta"))} en efectivo`],
   ];
 
   return (
@@ -28,7 +30,7 @@ export function WeighTicket({ className }: { className?: string }) {
       )}
     >
       <figcaption className="border-b border-dashed border-border pb-3">
-        <span className="block font-bold tracking-[0.06em] uppercase">Boleta de retiro</span>
+        <span className="block font-bold tracking-[0.06em] uppercase">Comprobante de entrega</span>
         <span className="tabular text-xs text-muted-foreground">RCA-2026-0A1B2C</span>
       </figcaption>
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1.5 py-3">
@@ -39,9 +41,11 @@ export function WeighTicket({ className }: { className?: string }) {
           </div>
         ))}
       </dl>
-      <p className="tabular rounded-md bg-accent-warm-soft px-3 py-2 font-semibold text-accent-warm-ink">
-        {formatKg(co2eAvoidedKg(KG))} de CO₂e evitados
-      </p>
+      {co2Factor !== undefined ? (
+        <p className="tabular rounded-md bg-accent-warm-soft px-3 py-2 font-semibold text-accent-warm-ink">
+          {formatCo2(co2AvoidedKg(LB, co2Factor))} de CO₂ evitado
+        </p>
+      ) : null}
     </figure>
   );
 }

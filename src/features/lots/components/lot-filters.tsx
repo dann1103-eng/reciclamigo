@@ -4,14 +4,17 @@ import { PolymerChip } from "@/components/polymer/polymer-chip";
 import { POLYMER_CODES, type PolymerCode } from "@/lib/domain/polymers";
 import { cn } from "@/lib/utils";
 
-import { RADIUS_OPTIONS, type RadiusM } from "../types";
+import type { RadiusM } from "../types";
 
 export function LotFilters({
+  radii,
   radiusM,
   polymers,
   onRadius,
   onTogglePolymer,
 }: {
+  /** Radios disponibles (m), de la configuración. */
+  radii: RadiusM[];
   radiusM: RadiusM;
   polymers: PolymerCode[];
   onRadius: (r: RadiusM) => void;
@@ -20,7 +23,7 @@ export function LotFilters({
   return (
     <div className="flex flex-col gap-3">
       <div role="radiogroup" aria-label="Radio de búsqueda" className="inline-flex w-fit rounded-xl bg-paper-2 p-1">
-        {RADIUS_OPTIONS.map((r) => (
+        {radii.map((r) => (
           <button
             key={r}
             type="button"

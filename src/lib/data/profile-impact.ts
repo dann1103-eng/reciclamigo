@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ProfileStats } from "@/lib/domain/badges";
+import type { ReputationTier } from "@/lib/domain/reputation";
 import type { Database } from "@/types/database";
 
 export type ProfileImpactRow = Database["public"]["Views"]["profile_impact"]["Row"];
 
-/** Totales de un perfil (kg, retiros, calificación). Sirve con cliente de servidor o de navegador. */
+/** Totales de un perfil (libras, entregas confirmadas, calificación). Sirve con cliente de servidor o de navegador. */
 export async function getProfileImpact(
   supabase: SupabaseClient<Database>,
   profileId: string,
@@ -20,11 +21,25 @@ const num = (value: number | string | null | undefined) => (value === null || va
 export function profileStatsFromRow(row: ProfileImpactRow): ProfileStats {
   return {
     role: row.role ?? "generador",
-    lotsPublished: num(row.lots_published),
     completedCount: num(row.completed_count),
-    completedKg: num(row.completed_kg),
+    completedLb: num(row.completed_lb),
     ratingAvg: row.rating_avg === null ? null : Number(row.rating_avg),
     ratingCount: num(row.rating_count),
     verified: row.verified ?? false,
+  };
+}
+
+/** Nivel de reputación (nuevo si el perfil aún no tiene fila). */
+export function reputationFromRow(row: ProfileImpactRow | null): {
+  tier: ReputationTier;
+  completedCount: number;
+  ratingAvg: number | null;
+  ratingCount: number;
+} {
+  return {
+    tier: row?.reputation_tier ?? "nuevo",
+    completedCount: num(row?.completed_count),
+    ratingAvg: row?.rating_avg === null || row?.rating_avg === undefined ? null : Number(row.rating_avg),
+    ratingCount: num(row?.rating_count),
   };
 }

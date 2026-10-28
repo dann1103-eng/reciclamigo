@@ -101,7 +101,7 @@ export function DemoMap() {
       <g transform={`translate(${SELECTED.x + 22} ${SELECTED.y - 52})`}>
         <rect width="132" height="28" rx="8" fill="var(--ink)" />
         <text x="12" y="19" fontSize="13" fontWeight="700" fill="var(--paper)">
-          PET · 40 kg · 1.8 km
+          PET · 90 lb · 1.8 km
         </text>
       </g>
 

@@ -1,5 +1,5 @@
 import type { PolymerCode } from "@/lib/domain/polymers";
-import type { LotStatus, Modality, PaymentMethod, UserRole } from "@/lib/domain/types";
+import type { LotStatus, Modality, PaymentMethod, TipoValorizador, UserRole } from "@/lib/domain/types";
 
 import { DEMO_ACCOUNTS, type DemoRole } from "./accounts";
 
@@ -21,15 +21,19 @@ export type SeedPerson = {
   address: string | null;
   lat: number;
   lng: number;
+  /** Solo recicladores: base o comprador de volumen (los centros de acopio y transformadores son de volumen). */
+  tipoValorizador: TipoValorizador | null;
+  /** Comercio con el Plan Trazabilidad activo en el demo. */
+  plan: boolean;
 };
 
 export type SeedLot = {
   key: string;
   generatorKey: string;
   polymerCode: PolymerCode;
-  estimatedKg: number;
+  estimatedLb: number;
   modality: Modality;
-  pricePerKg: number;
+  pricePerLb: number;
   status: LotStatus;
   pickupFrom: string;
   pickupTo: string;
@@ -44,10 +48,12 @@ export type SeedPickup = {
   reservedAt: string;
   deliveredAt: string | null;
   completedAt: string | null;
-  confirmedKg: number | null;
+  proposedLb: number | null;
+  confirmedLb: number | null;
+  finalPricePerLb: number | null;
   totalAmount: number | null;
   paymentMethod: PaymentMethod | null;
-  certificateCode: string | null;
+  voucherCode: string | null;
 };
 
 export type SeedRating = {
@@ -59,9 +65,43 @@ export type SeedRating = {
   createdAt: string;
 };
 
-export type SeedData = { people: SeedPerson[]; lots: SeedLot[]; pickups: SeedPickup[]; ratings: SeedRating[] };
+export type SeedCommission = {
+  lotKey: string;
+  collectorKey: string;
+  grossAmount: number;
+  pct: number;
+  amount: number;
+  status: "pendiente" | "cobrada";
+  createdAt: string;
+  paidAt: string | null;
+};
 
-type PersonInput = Omit<SeedPerson, "email">;
+export type SeedPoints = {
+  lotKey: string;
+  personKey: string;
+  points: number;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type SeedData = {
+  people: SeedPerson[];
+  lots: SeedLot[];
+  pickups: SeedPickup[];
+  ratings: SeedRating[];
+  commissions: SeedCommission[];
+  points: SeedPoints[];
+};
+
+type PersonInput = Omit<SeedPerson, "email" | "tipoValorizador" | "plan">;
+
+// Comercios con el Plan Trazabilidad en el demo (el administrador puede quitarlo y ponerlo en vivo).
+const PLAN_KEYS = new Set(["comedor-la-ceiba", "hotel-colonial", "super-la-cosecha"]);
+const VOLUME_BUYER = /acopio|transformador|industri|planta/i; // misma regla con la que la migración clasificó a los existentes
+const COMMISSION_PCT = 3;
+const POINTS_PER_LB = 1;
+const POINTS_MONTHLY_CAP = 500;
+const POINTS_VALID_DAYS = 365;
 
 const seedEmail = (key: string) => `${key}@seed.reciclamigo.app`;
 
@@ -85,6 +125,7 @@ const PEOPLE: PersonInput[] = [
   // Cuentas demo
   { key: "comedor-la-ceiba", demo: "comercio", role: "generador", displayName: "Comedor La Ceiba", orgType: "Restaurante", municipality: "Santa Ana", zone: "Centro", verified: true, whatsapp: "50370000101", address: "2a Calle Poniente #14, Santa Ana", lat: 13.9946, lng: -89.5597 },
   { key: "don-jose", demo: "reciclador", role: "valorizador", displayName: "Don José", orgType: "Reciclador de base", municipality: "Santa Ana", zone: "El Palmar", verified: true, whatsapp: "50370000201", address: "Colonia El Palmar, pasaje 3, Santa Ana", lat: 14.0066, lng: -89.553 },
+  { key: "admin-reciclamigo", demo: "admin", role: "administrador", displayName: "Equipo Reciclamigo", orgType: "Administración", municipality: "San Salvador", zone: "Centro", verified: true, whatsapp: null, address: null, lat: 13.6989, lng: -89.1914 },
   { key: "alcaldia-santa-ana", demo: "alcaldia", role: "municipalidad", displayName: "Alcaldía de Santa Ana", orgType: "Alcaldía", municipality: "Santa Ana", zone: "Centro", verified: true, whatsapp: null, address: null, lat: 13.9942, lng: -89.5594 },
 
   // Comercios en Santa Ana
@@ -173,7 +214,7 @@ function mulberry32(seed: number) {
 
 const round = (n: number, decimals: number) => Math.round(n * 10 ** decimals) / 10 ** decimals;
 
-export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): SeedData {
+export function buildSeedData(now: Date, prices: Record<PolymerCode, number | null>): SeedData {
   const rand = mulberry32(20261020);
   const between = (min: number, max: number) => min + rand() * (max - min);
   const int = (min: number, max: number) => Math.floor(between(min, max + 1));
@@ -195,6 +236,8 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
   const people: SeedPerson[] = PEOPLE.map((p) => ({
     ...p,
     email: p.demo ? DEMO_ACCOUNTS[p.demo].email : seedEmail(p.key),
+    tipoValorizador: p.role === "valorizador" ? (VOLUME_BUYER.test(p.orgType) ? "volumen" : "base") : null,
+    plan: PLAN_KEYS.has(p.key),
   }));
   const byKey = new Map(people.map((p) => [p.key, p]));
   const generators = people.filter((p) => p.role === "generador");
@@ -210,7 +253,7 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
     status: LotStatus,
     pickupFrom: Date,
     createdAt: Date,
-    kg = round(between(15, 180), 1),
+    lb = round(between(33, 400), 1),
   ): SeedLot => {
     const polymerCode = weighted(POLYMER_WEIGHTS);
     const modality = weighted(MODALITY_WEIGHTS);
@@ -218,9 +261,9 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
       key: `lote-${String(lots.length + 1).padStart(3, "0")}`,
       generatorKey,
       polymerCode,
-      estimatedKg: kg,
+      estimatedLb: lb,
       modality,
-      pricePerKg: modality === "venta" ? prices[polymerCode] : 0,
+      pricePerLb: modality === "venta" ? (prices[polymerCode] ?? 0) : 0,
       status,
       pickupFrom: pickupFrom.toISOString(),
       pickupTo: new Date(pickupFrom.getTime() + 2 * HOUR).toISOString(),
@@ -241,17 +284,19 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
   }
 
   // 2. Un lote ya reservado por Don José, para que "Mis retiros" no arranque vacío.
-  const reserved = newLot("hotel-colonial", "reservado", svAt(1, 9), new Date(now.getTime() - 20 * HOUR), 60);
+  const reserved = newLot("hotel-colonial", "reservado", svAt(1, 9), new Date(now.getTime() - 20 * HOUR), 130);
   pickups.push({
     lotKey: reserved.key,
     collectorKey: "don-jose",
     reservedAt: new Date(now.getTime() - 3 * HOUR).toISOString(),
     deliveredAt: null,
     completedAt: null,
-    confirmedKg: null,
+    proposedLb: null,
+    confirmedLb: null,
+    finalPricePerLb: null,
     totalAmount: null,
     paymentMethod: null,
-    certificateCode: null,
+    voucherCode: null,
   });
 
   // 3. Historial: 60 retiros completados en los últimos ~6 meses.
@@ -267,14 +312,14 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
     const completedAt = svAt(-int(1, 178), int(9, 16), int(0, 59));
     const deliveredAt = new Date(completedAt.getTime() - int(10, 90) * 60_000);
     const reservedAt = new Date(completedAt.getTime() - int(1, 3) * DAY);
-    const confirmedKg = round(10 + 290 * rand() ** 2, 1);
-    const estimatedKg = round(Math.min(10_000, confirmedKg * between(0.9, 1.15)), 1);
+    const confirmedLb = round(22 + 640 * rand() ** 2, 1);
+    const estimatedLb = round(Math.min(22_000, confirmedLb * between(0.9, 1.15)), 1);
     const lot = newLot(
       generator.key,
       "completado",
       new Date(deliveredAt.getTime() - 30 * 60_000),
       new Date(reservedAt.getTime() - int(2, 20) * HOUR),
-      estimatedKg,
+      estimatedLb,
     );
 
     let code: string;
@@ -290,10 +335,12 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
       reservedAt: reservedAt.toISOString(),
       deliveredAt: deliveredAt.toISOString(),
       completedAt: completedAt.toISOString(),
-      confirmedKg,
-      totalAmount: round(confirmedKg * lot.pricePerKg, 2),
+      proposedLb: confirmedLb,
+      confirmedLb,
+      finalPricePerLb: lot.pricePerLb,
+      totalAmount: round(confirmedLb * lot.pricePerLb, 2),
       paymentMethod: lot.modality === "venta" ? weighted(PAYMENT_WEIGHTS) : "efectivo",
-      certificateCode: code,
+      voucherCode: code,
     });
 
     const ratedAt = new Date(completedAt.getTime() + int(1, 12) * HOUR).toISOString();
@@ -317,5 +364,44 @@ export function buildSeedData(now: Date, prices: Record<PolymerCode, number>): S
     );
   }
 
-  return { people, lots, pickups, ratings };
+  // 4. Comisiones y ReciclaPuntos de esas entregas, con las mismas reglas que aplica la base al
+  //    confirmar: 3 % solo a compradores de volumen en ventas; puntos por libra con tope mensual.
+  const commissions: SeedCommission[] = [];
+  const points: SeedPoints[] = [];
+  const earnedByMonth = new Map<string, number>();
+  const monthsAgo30 = now.getTime() - 30 * DAY;
+  const chronological = pickups.filter((p) => p.completedAt).sort((a, b) => a.completedAt!.localeCompare(b.completedAt!));
+  for (const pickup of chronological) {
+    const lot = lots.find((l) => l.key === pickup.lotKey)!;
+    const collector = byKey.get(pickup.collectorKey)!;
+    if (collector.tipoValorizador === "volumen" && lot.modality === "venta" && pickup.totalAmount) {
+      const paid = new Date(pickup.completedAt!).getTime() < monthsAgo30;
+      commissions.push({
+        lotKey: lot.key,
+        collectorKey: collector.key,
+        grossAmount: pickup.totalAmount,
+        pct: COMMISSION_PCT,
+        amount: round((pickup.totalAmount * COMMISSION_PCT) / 100, 2),
+        status: paid ? "cobrada" : "pendiente",
+        createdAt: pickup.completedAt!,
+        paidAt: paid ? new Date(new Date(pickup.completedAt!).getTime() + 10 * DAY).toISOString() : null,
+      });
+    }
+    for (const personKey of [lot.generatorKey, collector.key]) {
+      const month = `${personKey}:${pickup.completedAt!.slice(0, 7)}`;
+      const earned = earnedByMonth.get(month) ?? 0;
+      const pts = Math.min(Math.floor(pickup.confirmedLb! * POINTS_PER_LB), POINTS_MONTHLY_CAP - earned);
+      if (pts <= 0) continue;
+      earnedByMonth.set(month, earned + pts);
+      points.push({
+        lotKey: lot.key,
+        personKey,
+        points: pts,
+        createdAt: pickup.completedAt!,
+        expiresAt: new Date(new Date(pickup.completedAt!).getTime() + POINTS_VALID_DAYS * DAY).toISOString(),
+      });
+    }
+  }
+
+  return { people, lots, pickups, ratings, commissions, points };
 }

@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import type { PolymerCode } from "@/lib/domain/polymers";
+import { parseSettings } from "@/lib/domain/settings";
 import type { Database } from "@/types/database";
 
 import { buildSeedData, type SeedPerson } from "./seed-data";
@@ -74,10 +74,11 @@ async function ensureUsers(admin: Admin, people: SeedPerson[], password: string)
 export async function seedDemo(admin: Admin, opts: { password: string; now?: Date }): Promise<SeedSummary> {
   const now = opts.now ?? new Date();
 
-  const { data: polymers } = await check("polímeros", admin.from("polymers").select("code, price_per_kg"));
-  const prices = Object.fromEntries(polymers!.map((p) => [p.code, Number(p.price_per_kg)])) as Record<PolymerCode, number>;
+  // Los precios de referencia vienen de la configuración (app_settings), igual que en la app.
+  const { data: settingRows } = await check("configuración", admin.from("app_settings").select("key, value"));
+  const settings = parseSettings(settingRows!);
 
-  const data = buildSeedData(now, prices);
+  const data = buildSeedData(now, settings.refPriceUsdPerLb);
   const ids = await ensureUsers(admin, data.people, opts.password);
   const personByKey = new Map(data.people.map((p) => [p.key, p]));
 
@@ -92,6 +93,7 @@ export async function seedDemo(admin: Admin, opts: { password: string; now?: Dat
         municipality: p.municipality,
         zone: p.zone,
         verified: p.verified,
+        tipo_valorizador: p.tipoValorizador,
       })),
     ),
   );
@@ -99,13 +101,33 @@ export async function seedDemo(admin: Admin, opts: { password: string; now?: Dat
     "contacto",
     admin.from("profile_private").upsert(
       data.people
-        .filter((p) => p.role !== "municipalidad")
+        .filter((p) => p.role !== "municipalidad" && p.role !== "administrador")
         .map((p) => ({ id: ids[p.key], whatsapp: p.whatsapp, address: p.address, location: point(p) })),
     ),
   );
 
-  // Borra todos los lotes; retiros y calificaciones caen en cascada.
+  // Planes: solo los comercios marcados quedan con el Plan Trazabilidad vigente.
+  await check("limpiar planes", admin.from("generator_plans").delete().not("profile_id", "is", null));
+  const planHolders = data.people.filter((p) => p.plan);
+  await check(
+    "planes",
+    admin.from("generator_plans").insert(
+      planHolders.map((p) => ({
+        profile_id: ids[p.key],
+        plan: "trazabilidad" as const,
+        started_at: new Date(now.getTime() - 30 * 86_400_000).toISOString(),
+        expires_at: new Date(now.getTime() + 335 * 86_400_000).toISOString(),
+        source: "manual",
+      })),
+    ),
+  );
+
+  // Borra todos los lotes; retiros, calificaciones y comisiones caen en cascada. Los puntos, los
+  // avisos en cola y los retiros programados no cuelgan de un lote, así que se limpian aparte.
   await check("limpiar lotes", admin.from("lots").delete().not("id", "is", null));
+  await check("limpiar puntos", admin.from("points_ledger").delete().not("id", "is", null));
+  await check("limpiar avisos", admin.from("notification_queue").delete().not("id", "is", null));
+  await check("limpiar programados", admin.from("scheduled_pickups").delete().not("id", "is", null));
 
   const lotIds = Object.fromEntries(data.lots.map((l) => [l.key, randomUUID()]));
   await check(
@@ -115,12 +137,12 @@ export async function seedDemo(admin: Admin, opts: { password: string; now?: Dat
         id: lotIds[l.key],
         generator_id: ids[l.generatorKey],
         polymer_code: l.polymerCode,
-        estimated_kg: l.estimatedKg,
+        estimated_lb: l.estimatedLb,
         photo_urls: l.photoUrls,
         pickup_from: l.pickupFrom,
         pickup_to: l.pickupTo,
         modality: l.modality,
-        price_per_kg: l.pricePerKg,
+        price_per_lb: l.pricePerLb,
         notes: l.notes,
         status: l.status,
         location: point(personByKey.get(l.generatorKey)!),
@@ -140,10 +162,14 @@ export async function seedDemo(admin: Admin, opts: { password: string; now?: Dat
         reserved_at: p.reservedAt,
         delivered_at: p.deliveredAt,
         completed_at: p.completedAt,
-        confirmed_kg: p.confirmedKg,
+        proposed_lb: p.proposedLb,
+        proposed_price_per_lb: p.finalPricePerLb,
+        proposed_at: p.deliveredAt,
+        confirmed_lb: p.confirmedLb,
+        final_price_per_lb: p.finalPricePerLb,
         total_amount: p.totalAmount,
         payment_method: p.paymentMethod,
-        certificate_code: p.certificateCode,
+        voucher_code: p.voucherCode,
       })),
     ),
   );
@@ -158,6 +184,38 @@ export async function seedDemo(admin: Admin, opts: { password: string; now?: Dat
         stars: r.stars,
         comment: r.comment,
         created_at: r.createdAt,
+      })),
+    ),
+  );
+
+  await check(
+    "comisiones",
+    admin.from("commissions").insert(
+      data.commissions.map((c) => ({
+        pickup_id: pickupIds[c.lotKey],
+        collector_id: ids[c.collectorKey],
+        gross_amount: c.grossAmount,
+        pct: c.pct,
+        amount: c.amount,
+        status: c.status,
+        created_at: c.createdAt,
+        paid_at: c.paidAt,
+      })),
+    ),
+  );
+
+  await check(
+    "puntos",
+    admin.from("points_ledger").insert(
+      data.points.map((pt) => ({
+        profile_id: ids[pt.personKey],
+        kind: "ganado" as const,
+        points: pt.points,
+        remaining: pt.points,
+        pickup_id: pickupIds[pt.lotKey],
+        expires_at: pt.expiresAt,
+        note: "Entrega confirmada",
+        created_at: pt.createdAt,
       })),
     ),
   );

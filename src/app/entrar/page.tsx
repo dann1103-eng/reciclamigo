@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Store, Truck } from "lucide-react";
+import { BarChart3, ShieldCheck, Store, Truck } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { DemoAccountButton } from "@/components/shell/demo-account-button";
@@ -43,14 +43,24 @@ export default function EntrarPage() {
             />
           </div>
 
-          <DemoAccountButton
-            role="alcaldia"
-            quiet
-            icon={<BarChart3 className="size-5" aria-hidden="true" />}
-            title="Reportes de alcaldía"
-            account="Alcaldía de Santa Ana"
-            detail="Solo lectura: totales, mapa de calor y ranking."
-          />
+          <div className="flex flex-col gap-3">
+            <DemoAccountButton
+              role="alcaldia"
+              quiet
+              icon={<BarChart3 className="size-5" aria-hidden="true" />}
+              title="Reportes de alcaldía"
+              account="Alcaldía de Santa Ana"
+              detail="Solo lectura: totales, mapa de calor y ranking."
+            />
+            <DemoAccountButton
+              role="admin"
+              quiet
+              icon={<ShieldCheck className="size-5" aria-hidden="true" />}
+              title="Administración"
+              account="Equipo Reciclamigo"
+              detail="Activa planes, ve comisiones y edita la configuración."
+            />
+          </div>
 
           <details className="group rounded-xl border border-border px-4 py-3">
             <summary className="cursor-pointer list-none text-sm font-semibold text-muted-foreground marker:hidden">

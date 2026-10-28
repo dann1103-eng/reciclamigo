@@ -25,13 +25,13 @@ let collectorPoint: { lat: number; lng: number };
 
 const inHours = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
 
-async function publish(kg = 40, polymer = "PET") {
+async function publish(lb = 90, polymer = "PET", modality: "venta" | "trueque" | "donacion" = "venta") {
   const { data, error } = await clients.comercio.rpc("publish_lot", {
     p_polymer_code: polymer,
-    p_estimated_kg: kg,
+    p_estimated_lb: lb,
     p_pickup_from: inHours(20),
     p_pickup_to: inHours(22),
-    p_modality: "venta",
+    p_modality: modality,
   });
   if (error) throw new Error(error.message);
   createdLots.push(data);
@@ -69,9 +69,9 @@ afterAll(async () => {
 });
 
 describe("RPC contra Supabase", () => {
-  let completedCode: string;
+  let voucherCode: string;
 
-  test("nearby_lots respeta el radio y el filtro de polímero", async () => {
+  test("nearby_lots respeta el radio y el filtro de polímero, y devuelve libras", async () => {
     const near = async (radius: number, polymers: string[] | null = null) => {
       const { data, error } = await clients.reciclador.rpc("nearby_lots", {
         p_lat: collectorPoint.lat,
@@ -87,17 +87,18 @@ describe("RPC contra Supabase", () => {
     expect(at3.length).toBeGreaterThanOrEqual(8);
     expect(at1.every((l) => at3.some((m) => m.id === l.id))).toBe(true);
     expect(at3.every((l) => l.distance_m <= 3000)).toBe(true);
+    expect(at3[0].estimated_lb).toBeGreaterThan(0);
     const pet = await near(5000, ["PET"]);
     expect(pet.length).toBeGreaterThan(0);
     expect(pet.every((l) => l.polymer_code === "PET")).toBe(true);
   });
 
-  test("publish_lot rechaza kg inválidos y ventana invertida", async () => {
-    await expect(publish(0)).rejects.toThrow(/kg estimados/);
-    await expect(publish(10001)).rejects.toThrow(/kg estimados/);
+  test("publish_lot rechaza libras inválidas y ventana invertida", async () => {
+    await expect(publish(0)).rejects.toThrow(/libras estimadas/);
+    await expect(publish(22001)).rejects.toThrow(/libras estimadas/);
     const { error } = await clients.comercio.rpc("publish_lot", {
       p_polymer_code: "PET",
-      p_estimated_kg: 10,
+      p_estimated_lb: 10,
       p_pickup_from: inHours(22),
       p_pickup_to: inHours(20),
       p_modality: "venta",
@@ -105,39 +106,73 @@ describe("RPC contra Supabase", () => {
     expect(error?.message).toMatch(/ventana de retiro/);
   });
 
-  test("flujo completo", async () => {
-    const lotId = await publish(40);
+  test("el precio de referencia sale de la configuración (PET $0.09/lb)", async () => {
+    const lotId = await publish(50);
+    const { data } = await admin.from("lots").select("price_per_lb").eq("id", lotId).single();
+    const { data: setting } = await admin.from("app_settings").select("value").eq("key", "precio_ref_pet_usd_lb").single();
+    expect(Number(data!.price_per_lb)).toBe(Number(setting!.value));
+  });
+
+  test("flujo completo con confirmación bilateral", async () => {
+    const lotId = await publish(100);
     const pickupId = await reserve(lotId);
-    const delivered = await clients.comercio.rpc("mark_delivered", { p_pickup_id: pickupId });
-    expect(delivered.error).toBeNull();
+
+    // Antes de que el comercio registre la entrega, el reciclador no puede confirmar nada.
+    const early = await clients.reciclador.rpc("complete_pickup", { p_pickup_id: pickupId, p_accept: true });
+    expect(early.error?.message).toMatch(/todavía no registra la entrega/);
+
+    const proposed = await clients.comercio.rpc("propose_delivery", { p_pickup_id: pickupId, p_lb: 100 });
+    expect(proposed.error).toBeNull();
     const { data: code, error } = await clients.reciclador.rpc("complete_pickup", {
       p_pickup_id: pickupId,
-      p_confirmed_kg: 35.5,
+      p_accept: true,
       p_payment_method: "efectivo",
     });
     expect(error).toBeNull();
     expect(code).toMatch(/^RCA-\d{4}-[0-9A-F]{6}$/);
-    completedCode = code!;
-    const { data: pickup } = await admin.from("pickups").select("total_amount").eq("id", pickupId).single();
-    expect(Number(pickup!.total_amount)).toBe(7.1); // 35.5 kg × $0.20
+    voucherCode = code!;
+    const { data: pickup } = await admin.from("pickups").select("total_amount, confirmed_lb, was_corrected").eq("id", pickupId).single();
+    expect(Number(pickup!.confirmed_lb)).toBe(100);
+    expect(Number(pickup!.total_amount)).toBe(9); // 100 lb × $0.09
+    expect(pickup!.was_corrected).toBe(false);
+  });
+
+  test("el reciclador puede corregir el peso y manda lo corregido", async () => {
+    const lotId = await publish(100);
+    const pickupId = await reserve(lotId);
+    await clients.comercio.rpc("propose_delivery", { p_pickup_id: pickupId, p_lb: 100 });
+    const { error } = await clients.reciclador.rpc("complete_pickup", {
+      p_pickup_id: pickupId,
+      p_accept: false,
+      p_confirmed_lb: 95,
+      p_payment_method: "efectivo",
+    });
+    expect(error).toBeNull();
+    const { data } = await admin.from("pickups").select("confirmed_lb, was_corrected").eq("id", pickupId).single();
+    expect(Number(data!.confirmed_lb)).toBe(95);
+    expect(data!.was_corrected).toBe(true);
   });
 
   test("segunda reserva falla", async () => {
-    const lotId = await publish(15);
+    const lotId = await publish(30);
     await reserve(lotId);
     await expect(reserve(lotId)).rejects.toThrow("El lote ya no está disponible");
   });
 
-  test("transiciones inválidas fallan", async () => {
-    const lotId = await publish(12);
+  test("liberar una reserva vuelve a publicar el lote", async () => {
+    const lotId = await publish(25);
     const pickupId = await reserve(lotId);
-    const early = await clients.reciclador.rpc("complete_pickup", {
-      p_pickup_id: pickupId,
-      p_confirmed_kg: 12,
-      p_payment_method: "efectivo",
-    });
-    expect(early.error?.message).toMatch(/todavía no marca la entrega/);
-    const notOwner = await clients.reciclador.rpc("mark_delivered", { p_pickup_id: pickupId });
+    const released = await clients.comercio.rpc("release_reservation", { p_pickup_id: pickupId });
+    expect(released.error).toBeNull();
+    const { data } = await admin.from("lots").select("status").eq("id", lotId).single();
+    expect(data!.status).toBe("publicado");
+    await expect(reserve(lotId)).resolves.toBeTruthy();
+  });
+
+  test("transiciones inválidas fallan", async () => {
+    const lotId = await publish(26);
+    const pickupId = await reserve(lotId);
+    const notOwner = await clients.reciclador.rpc("propose_delivery", { p_pickup_id: pickupId, p_lb: 26 });
     expect(notOwner.error?.message).toMatch(/Solo el comercio/);
   });
 
@@ -147,12 +182,11 @@ describe("RPC contra Supabase", () => {
 
   test("alcaldía no opera ni lee datos privados", async () => {
     const mun = clients.alcaldia;
-    // Un lote y un retiro propios de esta prueba (no depende del orden de las demás).
     const lotId = await publish(8);
     const pickupId = await reserve(lotId);
     const pub = await mun.rpc("publish_lot", {
       p_polymer_code: "PET",
-      p_estimated_kg: 10,
+      p_estimated_lb: 10,
       p_pickup_from: inHours(20),
       p_pickup_to: inHours(22),
       p_modality: "venta",
@@ -160,24 +194,31 @@ describe("RPC contra Supabase", () => {
     expect(pub.error?.message).toMatch(/Solo los comercios/);
     const res = await mun.rpc("reserve_lot", { p_lot_id: lotId });
     expect(res.error?.message).toMatch(/Solo los recicladores/);
-    const delivered = await mun.rpc("mark_delivered", { p_pickup_id: pickupId });
-    expect(delivered.error?.message).toMatch(/Solo el comercio/);
-    const completed = await mun.rpc("complete_pickup", { p_pickup_id: pickupId, p_confirmed_kg: 8, p_payment_method: "efectivo" });
+    const proposed = await mun.rpc("propose_delivery", { p_pickup_id: pickupId, p_lb: 8 });
+    expect(proposed.error?.message).toMatch(/Solo el comercio/);
+    const completed = await mun.rpc("complete_pickup", { p_pickup_id: pickupId, p_accept: true });
     expect(completed.error?.message).toMatch(/Solo el reciclador/);
     const rate = await mun.rpc("rate_pickup", { p_pickup_id: pickupId, p_stars: 5 });
     expect(rate.error?.message).toMatch(/Solo comercios y recicladores/);
     expect((await mun.from("lots").select("id")).data).toEqual([]);
     expect((await mun.from("profile_private").select("id")).data).toEqual([]);
-    const report = await mun.from("impact_monthly").select("completed_kg");
+    const report = await mun.from("impact_monthly").select("completed_lb");
     expect(report.error).toBeNull();
     expect(report.data!.length).toBeGreaterThan(0);
   });
 
-  test("get_certificate funciona sin sesión", async () => {
-    const { data, error } = await newClient().rpc("get_certificate", { p_code: completedCode });
+  test("solo el administrador cambia la configuración y respeta el rango de la comisión", async () => {
+    const denied = await clients.comercio.rpc("set_setting", { p_key: "lotes_gratis_por_mes", p_value: 99 });
+    expect(denied.error?.message).toMatch(/Solo el administrador/);
+    const tooHigh = await clients.admin.rpc("set_setting", { p_key: "comision_volumen_pct", p_value: 5 });
+    expect(tooHigh.error?.message).toMatch(/máximo es 4/);
+  });
+
+  test("get_voucher funciona sin sesión", async () => {
+    const { data, error } = await newClient().rpc("get_voucher", { p_code: voucherCode });
     expect(error).toBeNull();
     expect(data).toHaveLength(1);
-    expect(Number(data![0].confirmed_kg)).toBe(35.5);
+    expect(Number(data![0].confirmed_lb)).toBe(100);
   });
 
   test("/demo/reset exige token", async () => {

@@ -24,8 +24,24 @@ Las migraciones se aplican **a mano** en el SQL Editor de Supabase (no usamos la
 
 ## Reglas que viven en la base
 
-- Escrituras solo por RPC (`publish_lot`, `reserve_lot`, `mark_delivered`, `complete_pickup`,
-  `rate_pickup`); no hay policies de insert/update/delete en las tablas.
+- Escrituras solo por RPC (`publish_lot`, `repeat_lot`, `reserve_lot`, `propose_delivery`,
+  `complete_pickup`, `release_reservation`, `rate_pickup`, `set_setting`, `set_generator_plan`, …);
+  no hay policies de insert/update/delete en las tablas. Las funciones internas (con guion bajo) no
+  las puede llamar ningún usuario.
+- Pesos en **libras** (`estimated_lb`, `confirmed_lb`, `price_per_lb`). Los valores del negocio viven en
+  `app_settings` (solo el administrador los cambia, con rangos validados en la base).
+- Una entrega cuenta solo en `complete_pickup`: ahí se generan el comprobante, la comisión (solo
+  compradores de volumen en ventas) y los ReciclaPuntos.
 - La alcaldía (`municipalidad`) solo lee las vistas agregadas `profile_impact`,
   `impact_monthly` e `impact_heat`; no ve `lots`, `pickups` ni `profile_private`.
-- `get_certificate(code)` es lo único que puede leer un visitante sin sesión.
+- `get_voucher(code)` (comprobante) y `get_circular(slug)` (página pública de la insignia, solo con plan
+  activo) son lo único que puede leer un visitante sin sesión.
+- Cada función `security definer` debe quitarse a `authenticated` si es solo del cron: Supabase da
+  `EXECUTE` por defecto (ver `create_scheduled_lots`).
+
+## Reversa
+
+`supabase/rollbacks/20261028_modelo_negocio.down.sql` deshace las migraciones `20261028*` (libras a
+kilos, sin planes, comisión, puntos, avisos ni configuración). No es una migración: se corre a mano
+una sola vez y solo si hace falta. Pierde las tablas nuevas y redondea los pesos (±0.01). El valor
+`administrador` del enum de roles no se puede quitar. Lo prueba `tests/db/unidades.test.ts`.

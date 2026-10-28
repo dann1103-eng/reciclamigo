@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { co2eAvoidedKg, landfillM3Freed } from "./impact";
+import { co2AvoidedKg, landfillM3Freed } from "./impact";
 
+// impact.ts reexporta lo de units.ts con los nombres que ya usan las pantallas de impacto.
 describe("impacto ambiental", () => {
-  test("CO2e evitado usa el factor de la propuesta (180 t → 360 tCO2e)", () => {
-    expect(co2eAvoidedKg(180_000)).toBe(360_000);
+  test("CO₂ evitado: 100 lb de plástico = 45.36 kg → 90.7 kg de CO₂ con factor 2.0", () => {
+    expect(co2AvoidedKg(100, 2)).toBeCloseTo(90.72, 2);
   });
 
-  test("m³ de vertedero liberados usa 3 m³ por tonelada (180 t → 540 m³)", () => {
-    expect(landfillM3Freed(180_000)).toBe(540);
-    expect(landfillM3Freed(500)).toBe(1.5);
+  test("m³ de vertedero liberados usa 3 m³ por tonelada", () => {
+    expect(landfillM3Freed(2204.62)).toBeCloseTo(3, 2);
   });
 });

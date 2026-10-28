@@ -2,43 +2,42 @@
 
 import { FileCheck2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 import { PolymerChip } from "@/components/polymer/polymer-chip";
-import { buttonVariants } from "@/components/ui/button";
-import { formatKg, formatUSD } from "@/lib/domain/format";
-import { co2eAvoidedKg } from "@/lib/domain/impact";
+import { formatUSD } from "@/lib/domain/format";
+import { co2AvoidedKg, formatCo2, formatLb } from "@/lib/domain/units";
 import { cn } from "@/lib/utils";
 
 import { formatPickupWindow } from "../format-window";
 import type { MyPickup } from "../pickups";
+import { reservationMessage } from "../whatsapp";
 
-import { CompletePickupForm } from "./complete-pickup-form";
-import { collectorMessage } from "../whatsapp";
-
+import { ConfirmDeliveryForm } from "./confirm-delivery-form";
 import { RatePickup } from "./rate-pickup";
+import { ReleaseButton } from "./release-button";
 import { WhatsAppButton } from "./whatsapp-button";
 
 function statusText(pickup: MyPickup): string {
   if (pickup.status === "reservado") {
     const window = formatPickupWindow(new Date(pickup.pickupFrom), new Date(pickup.pickupTo));
-    return `${window}. Esperando que el comercio marque la entrega.`;
+    return `${window}. Esperando que el comercio registre la entrega.`;
   }
-  if (pickup.status === "entregado") return "El comercio marcó la entrega. Confirma los kg reales.";
+  if (pickup.status === "entregado") return "El comercio registró la entrega. Acéptala o corrígela.";
   return pickup.totalAmount ? `${formatUSD(pickup.totalAmount)} registrados` : "Sin cobro";
 }
 
 export function PickupRow({
   pickup,
   collectorName,
+  co2Factor,
   highlighted = false,
 }: {
   pickup: MyPickup;
   collectorName: string;
+  co2Factor: number;
   highlighted?: boolean;
 }) {
-  const [confirming, setConfirming] = useState(false);
-  const kg = pickup.confirmedKg ?? pickup.estimatedKg;
+  const lb = pickup.confirmedLb ?? pickup.proposedLb ?? pickup.estimatedLb;
 
   return (
     <li
@@ -49,7 +48,7 @@ export function PickupRow({
     >
       {highlighted && pickup.status === "completado" ? (
         <p role="status" className="tabular rounded-lg bg-brand-soft px-3 py-2 text-sm font-semibold text-brand">
-          Retiro completado: {formatKg(kg)} fuera del vertedero y {formatKg(co2eAvoidedKg(kg))} de CO₂e evitados.
+          Entrega confirmada: {formatLb(lb, 2)} fuera del vertedero y {formatCo2(co2AvoidedKg(lb, co2Factor))} de CO₂ evitado.
         </p>
       ) : null}
 
@@ -57,7 +56,7 @@ export function PickupRow({
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <PolymerChip code={pickup.polymerCode} />
-            <span className="tabular font-bold">{formatKg(kg)}</span>
+            <span className="tabular font-bold">{formatLb(lb, pickup.status === "completado" ? 2 : 1)}</span>
             <span className="text-sm text-muted-foreground">{pickup.generatorName}</span>
           </div>
           <p className="text-sm">{statusText(pickup)}</p>
@@ -66,42 +65,34 @@ export function PickupRow({
           {pickup.status !== "completado" ? (
             <WhatsAppButton
               phone={pickup.generatorWhatsapp}
-              text={collectorMessage({
+              text={reservationMessage({
                 collectorName,
-                kg: pickup.estimatedKg,
+                lotId: pickup.lotId,
                 polymerCode: pickup.polymerCode,
+                estimatedLb: pickup.estimatedLb,
                 windowLabel: formatPickupWindow(new Date(pickup.pickupFrom), new Date(pickup.pickupTo)),
               })}
             />
           ) : null}
-          {pickup.status === "entregado" && !confirming ? (
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className={buttonVariants({ size: "lg", className: "h-11 px-4" })}
-            >
-              Confirmar retiro
-            </button>
-          ) : null}
-          {pickup.status === "completado" && pickup.certificateCode ? (
+          {pickup.status === "completado" && pickup.voucherCode ? (
             <Link
-              href={`/certificados/${pickup.certificateCode}`}
+              href={`/comprobantes/${pickup.voucherCode}`}
               className="inline-flex h-11 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold outline-none hover:bg-paper-2 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <FileCheck2 className="size-4" aria-hidden="true" />
-              Ver certificado
+              Ver comprobante
             </Link>
           ) : null}
         </div>
       </div>
 
+      {pickup.status === "reservado" ? <ReleaseButton pickupId={pickup.id} by="reciclador" /> : null}
+
       {pickup.status === "completado" ? (
         <RatePickup pickupId={pickup.id} otherName={pickup.generatorName} myRating={pickup.myRating} />
       ) : null}
 
-      {confirming && pickup.status === "entregado" ? (
-        <CompletePickupForm pickup={pickup} onCancel={() => setConfirming(false)} />
-      ) : null}
+      {pickup.status === "entregado" ? <ConfirmDeliveryForm pickup={pickup} /> : null}
     </li>
   );
 }

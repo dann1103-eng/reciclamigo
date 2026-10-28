@@ -18,7 +18,8 @@ export const metadata: Metadata = {
     template: "%s · Reciclamigo",
   },
   description:
-    "Mercado circular de plástico en El Salvador: los comercios publican sus lotes y recicladores cercanos los recogen, con trazabilidad para la Ley ANDRES.",
+    "Mercado circular de plástico en El Salvador: los comercios publican sus lotes y recicladores cercanos los recogen, con comprobante de cada entrega.",
+  icons: { apple: "/pwa-icon/192" },
 };
 
 export const viewport: Viewport = {

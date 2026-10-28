@@ -1,14 +1,15 @@
 import { getSessionProfile } from "@/lib/auth";
+import { getSettings } from "@/lib/settings/load";
 import { createClient } from "@/lib/supabase/server";
 
 import { groupMyPickups } from "../pickups";
 import { fetchCollectorPoint, fetchMyPickups, fetchNearbyLots } from "../queries";
-import { DEFAULT_RADIUS } from "../types";
+import { defaultRadius, radiiToMeters } from "../radius";
 
 import { CollectorMap } from "./collector-map";
 
-/** Pantalla del reciclador: su ubicación y los lotes publicados a 3 km (el resto lo filtra el cliente). */
-export async function CollectorMapPage({ collectorId }: { collectorId: string }) {
+/** Pantalla del reciclador: su ubicación y los lotes del radio inicial (el resto lo filtra el cliente). */
+export async function CollectorMapPage({ collectorId, selectedLotId }: { collectorId: string; selectedLotId?: string }) {
   const supabase = await createClient();
   const center = await fetchCollectorPoint(supabase, collectorId);
   if (!center) {
@@ -21,8 +22,11 @@ export async function CollectorMapPage({ collectorId }: { collectorId: string })
       </section>
     );
   }
+  const settings = await getSettings();
+  const radii = radiiToMeters(settings.alertRadiiKm);
+  const defaultRadiusM = defaultRadius(radii);
   const [initialLots, profile, pickups] = await Promise.all([
-    fetchNearbyLots(supabase, { ...center, radiusM: DEFAULT_RADIUS, polymers: null }),
+    fetchNearbyLots(supabase, { ...center, radiusM: defaultRadiusM, polymers: null }),
     getSessionProfile(),
     fetchMyPickups(supabase, collectorId),
   ]);
@@ -34,6 +38,9 @@ export async function CollectorMapPage({ collectorId }: { collectorId: string })
       initialLots={initialLots}
       collectorName={collectorName}
       pendingPickups={toCollect.length + toConfirm.length}
+      radii={radii}
+      defaultRadiusM={defaultRadiusM}
+      initialSelectedId={selectedLotId ?? null}
     />
   );
 }
