@@ -1,0 +1,17 @@
+{
+  "name": "reciclamigo-presentacion",
+  "private": true,
+  "type": "module",
+  "description": "Generador de la presentación de Reciclamigo para DINAMICA FEST 2026 (aislado de la app).",
+  "scripts": {
+    "construir": "node construir.mjs"
+  },
+  "dependencies": {
+    "pptxgenjs": "^4.0.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-icons": "^5.7.0",
+    "sharp": "^0.35.5"
+  }
+}

@@ -1,0 +1,6 @@
+revision/
+
+# Se regeneran con build/preparar_marca.py, build/preparar_marcos.py y build/construir.mjs
+assets/iconos/
+assets/marca/
+assets/marcos/

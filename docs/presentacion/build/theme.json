@@ -1,0 +1,19 @@
+{
+  "name": "Reciclamigo",
+  "headFontFace": "Arial",
+  "bodyFontFace": "Calibri",
+  "colors": {
+    "dk1": "0F1F17",
+    "lt1": "FFFFFF",
+    "dk2": "0B4633",
+    "lt2": "F4F5EF",
+    "accent1": "0B4633",
+    "accent2": "CDF07B",
+    "accent3": "CDECB2",
+    "accent4": "6E9862",
+    "accent5": "2F6FDE",
+    "accent6": "E8833A",
+    "hlink": "0B4633",
+    "folHlink": "6E9862"
+  }
+}
