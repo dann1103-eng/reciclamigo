@@ -35,7 +35,7 @@ URL: https://reciclamigo.vercel.app
 | 7 | **Comercio** → **Plan** | Mostrar la tabla Gratis vs Plan Trazabilidad. | "Vender siempre es gratis. El plan es para quien necesita documentar lo que recicla." | 25 s |
 | 8 | **Comercio** → **Reportes** | Descargar el reporte de trazabilidad del mes (PDF). Mostrar la insignia "Comercio Circular" con su QR. | "Su reporte sale solo, con libras, kg entre paréntesis y CO₂ evitado." | 30 s |
 | 9 | Selector → **Administración** | **Planes**: el administrador activa y desactiva el plan a mano. **Comisiones**: resumen del mes por comprador de volumen. | "Sin pasarela de pago por ahora: el equipo activa el plan. La comisión solo se calcula y se registra." | 30 s |
-| 10 | Portada | Volver al inicio y mostrar las metas del piloto. | "Casi 400 mil libras y 35 recicladores formalizados en el primer año." | 15 s |
+| 10 | Portada | Volver al inicio y mostrar la proyección del primer año (escenario base del plan). | "En el primer año, unas 172 mil libras fuera del vertedero (78 toneladas), 156 toneladas de CO₂e evitadas y US$14,847 para negocios y recicladores." | 15 s |
 
 Si el tiempo aprieta, salta los pasos 6, 8 y 9.
 
@@ -54,6 +54,7 @@ Si el tiempo aprieta, salta los pasos 6, 8 y 9.
 
 - **¿Procesan pagos?** Hoy se registra el método (efectivo con comprobante, transferencia, Chivo Wallet). Integrar pagos es la siguiente fase. El Plan Trazabilidad también lo activa el equipo a mano.
 - **¿Cuánto cobran?** Vender es gratis para comercios y recicladores. El Plan Trazabilidad cuesta $14.99 al mes y es solo para comercios que necesitan documentar lo que reciclan. Los compradores de volumen pagan una comisión del 3 % sobre sus compras confirmadas; los recicladores de base, 0 %.
+- **¿Quiénes son los compradores de volumen y desde cuántas libras se consideran así?** No hay un umbral en libras: "volumen" es un tipo de comprador, no una cantidad. Son los centros de acopio, las recicladoras y las empresas transformadoras (de PET, HDPE y PP), que compran para revender o procesar. El administrador asigna el tipo de cada valorizador (de base o de volumen) en Administración → Valorizadores. Solo ellos pagan la comisión del 3 % (rango de 2 % a 4 %), y solo sobre compras confirmadas: una donación o un trueque no genera comisión. Los comercios y los recicladores de base nunca la pagan.
 - **¿Y los recicladores sin smartphone?** No necesitan descargar nada: entran desde un enlace o un QR y coordinan por WhatsApp, que ya usan. Recibir avisos de lotes cercanos pide un teléfono con navegador; sin eso, igual ven los lotes en el mapa.
 - **¿El comprobante tiene validez legal?** No: documenta las entregas registradas en Reciclamigo y puede respaldar la gestión de residuos de la empresa. No es un permiso ni un documento emitido por una autoridad.
 - **¿Los datos son reales?** Son de ejemplo: nombres ficticios con ubicaciones realistas en Santa Ana y San Salvador.

@@ -7,10 +7,12 @@ import { WeighTicket } from "@/components/landing/weigh-ticket";
 import { buttonVariants } from "@/components/ui/button";
 import { getSettings } from "@/lib/settings/load";
 
-const PILOT_GOALS = [
-  { value: "397,000 lb", label: "de plástico fuera del vertedero" },
-  { value: "35", label: "recicladores de base formalizados" },
-  { value: "360 t", label: "de CO₂e evitadas" },
+// Escenario base del plan de negocios v2, año 1: 78 t de plástico (78,000 kg × 2.20462 ≈ 172,000 lb),
+// 156 t de CO₂e (2 kg por kg de plástico) y US$14,847 que quedan en negocios y recicladores.
+const YEAR_ONE_PROJECTION = [
+  { value: "172,000 lb", label: "de plástico fuera del vertedero (78 t)" },
+  { value: "156 t", label: "de CO₂e evitadas" },
+  { value: "US$14,847", label: "para negocios y recicladores" },
 ];
 
 export default async function Home() {
@@ -61,9 +63,9 @@ export default async function Home() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-5 sm:px-8 lg:flex-row lg:items-baseline lg:gap-8">
-          <p className="text-sm font-semibold">Metas del piloto, primer año</p>
+          <p className="text-sm font-semibold">Primer año, escenario base del plan</p>
           <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-8">
-            {PILOT_GOALS.map((goal) => (
+            {YEAR_ONE_PROJECTION.map((goal) => (
               <li key={goal.value + goal.label} className="text-sm text-muted-foreground">
                 <span className="tabular mr-1.5 text-base font-bold text-foreground">{goal.value}</span>
                 {goal.label}
